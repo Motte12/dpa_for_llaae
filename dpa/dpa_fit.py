@@ -118,6 +118,9 @@ class DPA(object):
                               dist_enc=dist_enc, dist_dec=dist_dec, resblock=resblock, encoder_k=encoder_k,
                               bn_enc=bn_enc, bn_dec=bn_dec, out_act=out_act, 
                               linear=linear, lin_dec=lin_dec, lin_bias=lin_bias).to(device)
+        # add a linear approach to the model
+        self.latent_map = latent_map
+        
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
 
     def train_mode(self):
@@ -154,7 +157,7 @@ class DPA(object):
               print_every_nepoch=100, print_all_k=True, 
               standardize=None, univar=False, lr=None,
               save_model_every=None, save_recon_every=0, n_recon=5, recon_color=True, save_dir="", save_loss=False,
-              resume_epoch=None):
+              resume_epoch=None, latent_model=None):
         """Fit the model.
 
         Args:

@@ -11,7 +11,7 @@ class DPAmodel(nn.Module):
                  num_layer=3, num_layer_enc=None, hidden_dim=500, noise_dim=None, 
                  dist_enc="deterministic", dist_dec="deterministic", resblock=True,
                  encoder_k=False, bn_enc=False, bn_dec=False, out_act=None, 
-                 linear=False, lin_dec=True, lin_bias=True):
+                 linear=False, lin_dec=True, lin_bias=True, joint=False):
         super().__init__()
         self.data_dim = data_dim
         self.latent_dim = latent_dim
@@ -57,7 +57,10 @@ class DPAmodel(nn.Module):
         
         if self.encoder_k:
             self.k_embed_layer = nn.Linear(self.latent_dim, self.data_dim*2)
-    
+        
+        if joint:
+            self.latent_map = nn.Linear(1001, self.latent_dim)
+            
     def get_k_embedding(self, k, x=None):
         k_emb = torch.ones(1, self.latent_dim)
         k_emb[:, k:].zero_()
@@ -187,3 +190,14 @@ class DPAmodel(nn.Module):
                 return x, z_
             else:
                 return x
+
+    def predict(self, x):
+        # make one prediction with latent map and decoder
+        
+        if joint:
+            z = self.latent_map()
+            x1 = self.decoder(z)
+        else: 
+            print("The model has no latent map.")
+            return # ends function execution
+        return x1
