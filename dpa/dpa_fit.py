@@ -281,6 +281,7 @@ class DPA(object):
                             
                 if save_model_every is not None:
                     if (epoch_idx + 1) % save_model_every == 0:
+                        print("save_dir:", save_dir)
                         torch.save(self.model.state_dict(), save_dir + "model_" + str(epoch_idx + 1) + ".pt")
                 
                 if save_recon_every > 0:
