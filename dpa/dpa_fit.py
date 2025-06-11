@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 import os
 import numpy as np
 import pandas as pd
@@ -54,7 +55,7 @@ class DPA(object):
                  bn_enc=False, bn_dec=False, encoder_k=False, coef_match_latent=0,
                  lr=1e-4, num_epochs=500, batch_size=None, standardize=False, beta=1,
                  device=torch.device("cuda" if torch.cuda.is_available() else "cpu"), 
-                 dim1=192, dim2=288, seed=222):
+                 dim1=192, dim2=288, seed=222, joint = False):
         super().__init__()
         self.data_dim = data_dim
         if not isinstance(latent_dims, list):
@@ -117,11 +118,14 @@ class DPA(object):
                               num_layer=num_layer, num_layer_enc=num_layer_enc, hidden_dim=hidden_dim, noise_dim=noise_dim, 
                               dist_enc=dist_enc, dist_dec=dist_dec, resblock=resblock, encoder_k=encoder_k,
                               bn_enc=bn_enc, bn_dec=bn_dec, out_act=out_act, 
-                              linear=linear, lin_dec=lin_dec, lin_bias=lin_bias).to(device)
+                              linear=linear, lin_dec=lin_dec, lin_bias=lin_bias, joint=joint).to(device)
         # add a linear approach to the model
-        self.latent_map = latent_map
-        
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+        # self.latent_map = latent_map
+
+        params_to_optimize = list(self.model.encoder.parameters()) + list(self.model.decoder.parameters())
+        #self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+        self.optimizer = torch.optim.Adam(params_to_optimize, lr=lr)
+        self.optimizer_lm = torch.optim.Adam(list(self.model.latent_map.parameters()), lr=lr) #separate optimizer for linear model
 
     def train_mode(self):
         self.model.train()
@@ -153,15 +157,16 @@ class DPA(object):
         else:
             return x
                 
-    def train(self, x, x_te=None, c=None, c_te=None, num_epochs=None, num_pro_epoch=0, batch_size=None, 
+    def train(self, x, slp, x_te=None, c=None, c_te=None, num_epochs=None, num_pro_epoch=0, batch_size=None, 
               print_every_nepoch=100, print_all_k=True, 
               standardize=None, univar=False, lr=None,
               save_model_every=None, save_recon_every=0, n_recon=5, recon_color=True, save_dir="", save_loss=False,
-              resume_epoch=None, latent_model=None):
+              resume_epoch=None):
         """Fit the model.
 
         Args:
             x (torch.Tensor or DataLoader): training data.
+            slp (torch.Tensor): predictors for latent map
             x_te (torch.Tensor, optional): test data. Defaults to None.
             c (torch.Tensor or DataLoader, optional): training conditioning variable. Defaults to None.
             c_te (torch.Tensor, optional): test conditioning variable. Defaults to None.
@@ -254,6 +259,9 @@ class DPA(object):
             # todo
         else:
             train_loader = make_dataloader(x, c, batch_size=batch_size, shuffle=True)
+            #print("train loader type:", type(train_loader))
+            slp_loader = make_dataloader(slp, c, batch_size=batch_size, shuffle=True)
+            #print("slp loader type:", type(slp_loader))
             print(f"Start training with {len(train_loader)} batches each of size {batch_size}.\n")
             if self.condition_dim is not None:
                 c = utils.onehot2num(c)
@@ -261,17 +269,28 @@ class DPA(object):
                 self.loss_all_k = np.zeros(self.num_levels)
                 self.loss_pred_all_k = np.zeros(self.num_levels)
                 self.loss_var_all_k = np.zeros(self.num_levels)
-                for batch_idx, x_batch in enumerate(train_loader):
+                #for batch_idx, x_batch in enumerate(train_loader): #for batch_idx, (batch1, batch2) in enumerate(zip(loader1, loader2)):
+                
+                ### iterate over temperature data batch and pressure/slp batch ###
+                for batch_idx, (x_batch, slp_batch) in enumerate(zip(train_loader, slp_loader)):
+                    #print("x_batch type:",type(x_batch))
+                    #print("slp_batch type:", type(slp_batch))
+                    #print(len(x_batch))
+                    #print(x_batch)
+                    #print(len(slp_batch))
+                    #print(slp_batch)
                     if c is None:
                         x_batch = x_batch[0]
                         c_batch = None
+                        slp_batch = slp_batch[0]
                     else:
                         x_batch, c_batch = x_batch
                         c_batch = c_batch.to(self.device)
                     x_batch = x_batch.to(self.device)
+                    slp_batch = slp_batch.to(self.device)
                     
                     k_max = min(int((epoch_idx + 1) // num_pro_epoch), self.num_levels - 1)
-                    self.train_one_iter(x_batch, c_batch, k_max)
+                    self.train_one_iter(x_batch, slp_batch, c_batch, k_max)
                     
                     if (epoch_idx == 0 or (epoch_idx + 1) % print_every_nepoch == 0):
                         if batch_idx + 1 == (len(train_loader) - 1):
@@ -303,23 +322,42 @@ class DPA(object):
         #         self.loss_pred_all_k[k] = s1.item()
         #         self.loss_var_all_k[k] = s2.item()
         
-    def train_one_iter(self, x_batch, c_batch, k_max):
+    def train_one_iter(self, x_batch, slp_batch, c_batch, k_max):
                 
         self.model.zero_grad()
         losses = []
-        for k in range(k_max + 1):
-            return_latent = self.match_latent & (k == k_max)
-            gen1 = self.model(x=x_batch, k=self.latent_dims[k], c=c_batch, return_latent=return_latent, double=True)
-            if return_latent:
-                gen1, gen2, z = gen1
-            else:
-                gen1, gen2 = gen1
-            loss, s1, s2 = energy_loss_two_sample(x_batch, gen1, gen2, beta=self.beta, verbose=True)
-            self.loss_all_k[k] += loss.item()
-            self.loss_pred_all_k[k] += s1.item()
-            self.loss_var_all_k[k] += s2.item()
-            losses.append(loss)
-        loss = sum(losses)
+        losses_lm = []
+        print("k_max:", k_max)
+        
+        #for k in range(k_max + 1): # commented out by FriederL
+        k = 0 # added by FriederL
+        #return_latent = self.match_latent & (k == k_max) #commented out by FriederL
+        # added by FriederL
+        return_latent = True
+        gen1 = self.model(x=x_batch, k=self.latent_dims[k], c=c_batch, return_latent=return_latent, double=True)
+        # Changes by FriederL ###
+        #if return_latent:
+        gen1, gen2, z = gen1
+        #else:
+        #gen1, gen2 = gen1
+        #########################
+        loss, s1, s2 = energy_loss_two_sample(x_batch, gen1, gen2, beta=self.beta, verbose=True)
+
+        ### make predictions with linear map ###
+        pred1, pred2 = self.model.predict(x=slp_batch, double=True)
+        loss_pred, s1_pred, s2_pred = energy_loss_two_sample(x_batch, pred1, pred2, beta=self.beta, verbose=True) 
+        ########################################
+        
+        self.loss_all_k[k] += loss.item()
+        self.loss_pred_all_k[k] += s1.item()
+        self.loss_var_all_k[k] += s2.item()
+
+        ### sum losses from dpa reconstruction and prediction with latent map ###
+        loss_joint = loss + loss_pred
+        #########################################################################
+        
+        losses.append(loss_joint) # indent
+        loss = sum(losses) # dont indent
         if self.match_latent:
             z_gauss = torch.randn((gen1.size(0), self.latent_dim), device=self.device)
             indices = np.random.permutation(gen1.size(0))
@@ -338,6 +376,20 @@ class DPA(object):
         loss.backward()
         self.optimizer.step()
 
+        train_step_lm(z)
+
+        
+
+    def train_step_lm(self, latents_target, latents_predicted, optimizer_lm):
+        latent_loss = F.mse_loss(latents_predicted, latents_target) # compute MSE loss
+        
+        latent_loss.backward()
+        self.optimizer_lm.step()
+        
+        return latent_loss
+        
+        
+        
     def print_loss(self, x_te, c_te, batch_idx, epoch_idx, k_max, print_all_k, printout=False):
         self.loss_all_k = self.loss_all_k / (batch_idx + 1)
         self.loss_pred_all_k = self.loss_pred_all_k / (batch_idx + 1)
@@ -483,6 +535,13 @@ class DPA(object):
             return recon_loss
         else:
             return x_recon
+    
+    @torch.no_grad()
+    def predict_latent(self ,x , double=False):
+        self.eval_mode()
+        pred1, pred2 = self.model.predict(x,double=double)
+        return pred1, pred2
+        
                     
     def save_recon(self, x, c=None, k_max=None, gen_sample_size=100, n_row=5, save_dir="", color=True):
         # only used during training
@@ -525,4 +584,9 @@ class DPA(object):
             samples = self.unstandardize_data(samples)
         self.train_mode()
         return samples 
+
+    def check_parameters(self):
+        for name, param in self.model.named_parameters():
+            print(name, param.shape)
+        return
 

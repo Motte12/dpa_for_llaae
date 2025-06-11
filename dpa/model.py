@@ -35,6 +35,7 @@ class DPAmodel(nn.Module):
         self.linear = linear
         self.lin_dec = lin_dec
         self.encoder_k = encoder_k
+        self.joint = joint
         
         if not linear:
             self.encoder = StoNet(data_dim, latent_dim, num_layer_enc, hidden_dim, noise_dim_enc, bn_enc, resblock=resblock)
@@ -152,6 +153,8 @@ class DPAmodel(nn.Module):
         return results
         
     def forward(self, x, c=None, k=None, gen_sample_size=None, return_latent=False, device=None, double=False):
+        #print("x-type:", type(x))
+        #print("x-shape:", x.shape)
         if k is None:
             k = self.latent_dim
         if self.encoder_k:
@@ -191,13 +194,24 @@ class DPAmodel(nn.Module):
             else:
                 return x
 
-    def predict(self, x):
+    def predict(self, x, double=False):
         # make one prediction with latent map and decoder
-        
-        if joint:
-            z = self.latent_map()
-            x1 = self.decoder(z)
+        #print('Making linear prediction ...')
+        #print('Joint training:', self.joint)
+        #print("x-type:", type(x))
+        #print("x-shape:", x.shape)
+        if self.joint:
+            if double:
+                z1 = self.latent_map(x)
+                x1 = self.decoder(z1)
+
+                z2 = self.latent_map(x)
+                x2 = self.decoder(z2)
+                
+            else: 
+                z = self.latent_map()
+                x1 = self.decoder(z)
         else: 
             print("The model has no latent map.")
             return # ends function execution
-        return x1
+        return x1, x2
