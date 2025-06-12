@@ -207,11 +207,13 @@ class DPAmodel(nn.Module):
 
                 z2 = self.latent_map(x)
                 x2 = self.decoder(z2)
+                return x1, x2, z1, z2
                 
             else: 
-                z = self.latent_map()
+                z = self.latent_map(x)
                 x1 = self.decoder(z)
+                return x1, z
         else: 
             print("The model has no latent map.")
             return # ends function execution
-        return x1, x2
+        

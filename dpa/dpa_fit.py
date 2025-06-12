@@ -266,6 +266,9 @@ class DPA(object):
             if self.condition_dim is not None:
                 c = utils.onehot2num(c)
             for epoch_idx in range(start_epoch, num_epochs):
+                #########################
+                ### TRAIN AUTOENCODER ###
+                #########################
                 self.loss_all_k = np.zeros(self.num_levels)
                 self.loss_pred_all_k = np.zeros(self.num_levels)
                 self.loss_var_all_k = np.zeros(self.num_levels)
@@ -290,6 +293,7 @@ class DPA(object):
                     slp_batch = slp_batch.to(self.device)
                     
                     k_max = min(int((epoch_idx + 1) // num_pro_epoch), self.num_levels - 1)
+                    #print("AE training, x_batch type:", type(x_batch))
                     self.train_one_iter(x_batch, slp_batch, c_batch, k_max)
                     
                     if (epoch_idx == 0 or (epoch_idx + 1) % print_every_nepoch == 0):
@@ -311,6 +315,15 @@ class DPA(object):
                         self.save_recon(x_eval, c_eval, k_max=k_max, n_row=n_recon, save_dir=save_dir + f"recon_tr{epoch_idx + 1}_k{k_max}.png", gen_sample_size=1, color=recon_color)
                         self.save_recon(x_te_eval, c_te_eval, k_max=k_max, n_row=n_recon, save_dir=save_dir + f"recon_te{epoch_idx + 1}_k{k_max}.png", gen_sample_size=1, color=recon_color)
                         self.train_mode()
+                ########################
+                ### TRAIN LATENT MAP ###
+                ########################
+                #print("x_batch type:", type(x_batch))
+                #print("x_batch[0] type:", type(x_batch[0]))
+
+                self.train_step_lm(train_loader, slp_loader, c_batch)
+                
+                
         
         # self.model.eval()
         # with torch.no_grad():
@@ -322,12 +335,11 @@ class DPA(object):
         #         self.loss_pred_all_k[k] = s1.item()
         #         self.loss_var_all_k[k] = s2.item()
         
-    def train_one_iter(self, x_batch, slp_batch, c_batch, k_max):
+    def train_one_iter(self, x_batch, slp_batch, c_batch, k_max): #executed per batch during training
                 
         self.model.zero_grad()
         losses = []
-        losses_lm = []
-        print("k_max:", k_max)
+        #print("k_max:", k_max)
         
         #for k in range(k_max + 1): # commented out by FriederL
         k = 0 # added by FriederL
@@ -344,7 +356,7 @@ class DPA(object):
         loss, s1, s2 = energy_loss_two_sample(x_batch, gen1, gen2, beta=self.beta, verbose=True)
 
         ### make predictions with linear map ###
-        pred1, pred2 = self.model.predict(x=slp_batch, double=True)
+        pred1, pred2, _, _ = self.model.predict(x=slp_batch, double=True)
         loss_pred, s1_pred, s2_pred = energy_loss_two_sample(x_batch, pred1, pred2, beta=self.beta, verbose=True) 
         ########################################
         
@@ -376,17 +388,31 @@ class DPA(object):
         loss.backward()
         self.optimizer.step()
 
-        train_step_lm(z)
-
         
 
-    def train_step_lm(self, latents_target, latents_predicted, optimizer_lm):
-        latent_loss = F.mse_loss(latents_predicted, latents_target) # compute MSE loss
+    def train_step_lm(self, train_loader, slp_loader, c_batch):
+        print("Training linear model ...")
+        for batch_idx, (x_batch, slp_batch) in enumerate(zip(train_loader, slp_loader)):
+            losses_lm = [] 
+            self.model.train() # put model in train mode (or in eval mode?)
+            x_batch = x_batch[0].to(self.device)
+            slp_batch = slp_batch[0].to(self.device)
+            #x_batch = x_batch.to(self.device)
+            #slp_batch = slp_batch.to(self.device)
+            k=0
+            _, z = self.model(x=x_batch, k=self.latent_dims[k], c=c_batch, return_latent=True, double=False) # model encode x_batch 
+            #print("Z shape:", z.shape)
+            x1, z_predicted = self.model.predict(x=slp_batch, double=False)# latent predictions with latent map 
+            #print("z_predicted shape:", z_predicted.shape)
+            latent_loss = F.mse_loss(z_predicted, z) # compute MSE loss
+            
+            self.model.zero_grad() # reset the gradients of all model parameters before backpropagation
+            self.model.latent_map.zero_grad() # reset the gradients of all model parameters before backpropagation
+
+            latent_loss.backward()
+            self.optimizer_lm.step()
         
-        latent_loss.backward()
-        self.optimizer_lm.step()
-        
-        return latent_loss
+        return
         
         
         
