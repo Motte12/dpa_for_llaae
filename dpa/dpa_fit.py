@@ -109,6 +109,20 @@ class DPA(object):
         self.loss_var_all_k_test = np.zeros(self.num_levels)
         self.energy_loss = None
         self.recon_mse = None
+
+        ### added by FriederL #####################################
+        self.loss_latent_pred_train = np.zeros(self.num_levels)
+        self.loss_pred_latent_pred_train = np.zeros(self.num_levels)
+        self.loss_var_latent_pred_train = np.zeros(self.num_levels)
+
+        self.loss_latent_pred_test = np.zeros(self.num_levels)
+        self.loss_pred_latent_pred_test = np.zeros(self.num_levels)
+        self.loss_var_latent_pred_test = np.zeros(self.num_levels)
+
+        self.loss_joint_train = np.zeros(self.num_levels)
+        self.loss_joint_test = np.zeros(self.num_levels)
+        ###########################################################
+        
         
         random.seed(seed)
         torch.manual_seed(seed)
@@ -269,9 +283,19 @@ class DPA(object):
                 #########################
                 ### TRAIN AUTOENCODER ###
                 #########################
+                # set losses to zero
                 self.loss_all_k = np.zeros(self.num_levels)
                 self.loss_pred_all_k = np.zeros(self.num_levels)
                 self.loss_var_all_k = np.zeros(self.num_levels)
+
+                ### added by FriederL ###########################
+                self.loss_latent_pred_train = np.zeros(self.num_levels)
+                self.loss_pred_latent_pred_train = np.zeros(self.num_levels)
+                self.loss_var_latent_pred_train = np.zeros(self.num_levels)
+                self.loss_joint_train = np.zeros(self.num_levels)
+                #################################################
+
+                
                 #for batch_idx, x_batch in enumerate(train_loader): #for batch_idx, (batch1, batch2) in enumerate(zip(loader1, loader2)):
                 
                 ### iterate over temperature data batch and pressure/slp batch ###
@@ -364,8 +388,15 @@ class DPA(object):
         self.loss_pred_all_k[k] += s1.item()
         self.loss_var_all_k[k] += s2.item()
 
+        ### save loss from latent predictions and decodings ###
+        self.loss_latent_pred_train[k] += loss_pred.item()
+        self.loss_pred_latent_pred_train[k] += s1_pred.item()
+        self.loss_var_latent_pred_train[k] += s2_pred.item()
+        #######################################################
+        
         ### sum losses from dpa reconstruction and prediction with latent map ###
         loss_joint = loss + loss_pred
+        self.loss_joint_train[k] += loss_joint.item()
         #########################################################################
         
         losses.append(loss_joint) # indent
@@ -420,8 +451,13 @@ class DPA(object):
         self.loss_all_k = self.loss_all_k / (batch_idx + 1)
         self.loss_pred_all_k = self.loss_pred_all_k / (batch_idx + 1)
         self.loss_var_all_k = self.loss_var_all_k / (batch_idx + 1)
+
+        self.loss_latent_pred_train += self.loss_latent_pred_train / (batch_idx + 1)
+        self.loss_pred_latent_pred_train += self.loss_pred_latent_pred_train / (batch_idx + 1)
+        self.loss_var_latent_pred_train += self.loss_var_latent_pred_train / (batch_idx + 1)
+        self.loss_joint_train += self.loss_joint_train / (batch_idx + 1)
         
-        print_loss_str = f"[Epoch {epoch_idx + 1}] "
+        print_loss_str = f"[Epoch {epoch_idx + 1}], "
         if print_all_k:
             print_loss_str += ", ".join("{:.4f}".format(f) for f in self.loss_all_k[:(k_max + 1)]) + "\n"
             print_loss_str += " pred \t" + ", ".join("{:.4f}".format(f) for f in self.loss_pred_all_k[:(k_max + 1)]) + "\n"
@@ -431,8 +467,18 @@ class DPA(object):
             loss_min = np.min(np.array(self.loss_all_k)[:(k_max + 1)])
             loss_s1_mean = np.mean(np.array(self.loss_pred_all_k)[:(k_max + 1)])
             loss_s2_mean = np.mean(np.array(self.loss_var_all_k)[:(k_max + 1)])
-            print_loss_str += f" average loss {loss_mean:.4f}, {loss_s1_mean:.4f}, {loss_s2_mean:.4f}, min {loss_min:.4f}"
-        
+            
+            loss_mean_pred = np.mean(np.array(self.loss_latent_pred_train)[:(k_max + 1)])
+            loss_s1_pred = np.mean(np.array(self.loss_pred_latent_pred_train)[:(k_max + 1)])
+            loss_s2_pred = np.mean(np.array(self.loss_var_latent_pred_train)[:(k_max + 1)])
+            loss_total_joint = np.mean(np.array(self.loss_joint_train)[:(k_max + 1)])
+            loss_total_joint_min = np.min(np.array(self.loss_joint_train)[:(k_max + 1)])
+            
+            #print_loss_str += f" average loss {loss_mean:.4f}, {loss_s1_mean:.4f}, {loss_s2_mean:.4f}, min {loss_min:.4f}"
+            ### added by FriederL ####
+            print_loss_str += f"{loss_mean:.4f}, {loss_mean_pred:.4f}, {loss_total_joint:.4f},{loss_total_joint_min:.4f},"
+            ##########################
+
         if x_te is not None:
             self.eval_mode()
             with torch.autocast(device_type="cuda"):
@@ -454,7 +500,9 @@ class DPA(object):
                 loss_min = np.min(np.array(self.loss_all_k_test)[:(k_max + 1)])
                 loss_s1_mean = np.mean(np.array(self.loss_pred_all_k_test)[:(k_max + 1)])
                 loss_s2_mean = np.mean(np.array(self.loss_var_all_k_test)[:(k_max + 1)])
-                print_loss_str += f"; test average loss {loss_mean:.4f}, {loss_s1_mean:.4f}, {loss_s2_mean:.4f}, min {loss_min:.4f}"
+                #print_loss_str += f"; test average loss {loss_mean:.4f}, {loss_s1_mean:.4f}, {loss_s2_mean:.4f}, min {loss_min:.4f}"
+                print_loss_str += f"{loss_mean:.4f}, {loss_s1_mean:.4f}, {loss_s2_mean:.4f}, {loss_min:.4f}"
+
         if printout:
             print(print_loss_str)
             return None
@@ -565,8 +613,12 @@ class DPA(object):
     @torch.no_grad()
     def predict_latent(self ,x , double=False):
         self.eval_mode()
-        pred1, pred2 = self.model.predict(x,double=double)
-        return pred1, pred2
+        if double == True:
+            x1, x2, z1, z2 = self.model.predict(x, double=double)
+            return x1, x2, z1, z2
+        else:
+            pred1, pred2 = self.model.predict(x,double=double)
+            return pred1, pred2
         
                     
     def save_recon(self, x, c=None, k_max=None, gen_sample_size=100, n_row=5, save_dir="", color=True):
