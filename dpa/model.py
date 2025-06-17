@@ -60,7 +60,7 @@ class DPAmodel(nn.Module):
             self.k_embed_layer = nn.Linear(self.latent_dim, self.data_dim*2)
         
         if joint:
-            self.latent_map = nn.Linear(1001, self.latent_dim)
+            self.latent_map = nn.Linear(1000, self.latent_dim)
             
     def get_k_embedding(self, k, x=None):
         k_emb = torch.ones(1, self.latent_dim)

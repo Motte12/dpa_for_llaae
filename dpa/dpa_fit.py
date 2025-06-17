@@ -171,7 +171,7 @@ class DPA(object):
         else:
             return x
                 
-    def train(self, x, slp, x_te=None, c=None, c_te=None, num_epochs=None, num_pro_epoch=0, batch_size=None, 
+    def train(self, x, slp, x_te=None, slp_te=None, c=None, c_te=None, num_epochs=None, num_pro_epoch=0, batch_size=None, 
               print_every_nepoch=100, print_all_k=True, 
               standardize=None, univar=False, lr=None,
               save_model_every=None, save_recon_every=0, n_recon=5, recon_color=True, save_dir="", save_loss=False,
@@ -248,8 +248,10 @@ class DPA(object):
         if x_te is not None:
             # x_te = x_te[:batch_size]
             x_te = x_te.to(self.device)
+            slp_te = slp_te.to(self.device)
             if self.standardize:
                 x_te = self.standardize_data(x_te)
+                slp_te = self.standardize_data(slp_te)
         if save_recon_every > 0:    
             x_eval = x[eval_idx[:n_recon]].to(self.device)
             c_eval = None if self.condition_dim is None else c[eval_idx[:n_recon]].to(self.device)
@@ -322,7 +324,7 @@ class DPA(object):
                     
                     if (epoch_idx == 0 or (epoch_idx + 1) % print_every_nepoch == 0):
                         if batch_idx + 1 == (len(train_loader) - 1):
-                            print_loss_str = self.print_loss(x_te, c_te, batch_idx, epoch_idx, k_max, print_all_k)
+                            print_loss_str = self.print_loss(x_te, slp_te, c_te, batch_idx, epoch_idx, k_max, print_all_k)
                             print(print_loss_str)
                             if save_loss:
                                 log_file.write(print_loss_str + "\n")
@@ -447,7 +449,7 @@ class DPA(object):
         
         
         
-    def print_loss(self, x_te, c_te, batch_idx, epoch_idx, k_max, print_all_k, printout=False):
+    def print_loss(self, x_te, slp_te, c_te, batch_idx, epoch_idx, k_max, print_all_k, printout=False):
         self.loss_all_k = self.loss_all_k / (batch_idx + 1)
         self.loss_pred_all_k = self.loss_pred_all_k / (batch_idx + 1)
         self.loss_var_all_k = self.loss_var_all_k / (batch_idx + 1)
@@ -462,6 +464,8 @@ class DPA(object):
             print_loss_str += ", ".join("{:.4f}".format(f) for f in self.loss_all_k[:(k_max + 1)]) + "\n"
             print_loss_str += " pred \t" + ", ".join("{:.4f}".format(f) for f in self.loss_pred_all_k[:(k_max + 1)]) + "\n"
             print_loss_str += " var \t" + ", ".join("{:.4f}".format(f) for f in self.loss_var_all_k[:(k_max + 1)]) + "\n"
+            # add here printing of my losses
+            print_loss_str += " Ldl \t" + ", ".join("{:.4f}".format(f) for f in self.loss_latent_pred_train[:(k_max + 1)]) + "\n"
         else:
             loss_mean = np.mean(np.array(self.loss_all_k)[:(k_max + 1)])
             loss_min = np.min(np.array(self.loss_all_k)[:(k_max + 1)])
@@ -474,9 +478,9 @@ class DPA(object):
             loss_total_joint = np.mean(np.array(self.loss_joint_train)[:(k_max + 1)])
             loss_total_joint_min = np.min(np.array(self.loss_joint_train)[:(k_max + 1)])
             
-            #print_loss_str += f" average loss {loss_mean:.4f}, {loss_s1_mean:.4f}, {loss_s2_mean:.4f}, min {loss_min:.4f}"
+            print_loss_str += f" average loss {loss_mean:.4f}, {loss_s1_mean:.4f}, {loss_s2_mean:.4f}, min {loss_min:.4f}"
             ### added by FriederL ####
-            print_loss_str += f"{loss_mean:.4f}, {loss_mean_pred:.4f}, {loss_total_joint:.4f},{loss_total_joint_min:.4f},"
+            #print_loss_str += f"{loss_mean:.4f}, {loss_mean_pred:.4f}, {loss_total_joint:.4f},{loss_total_joint_min:.4f},"
             ##########################
 
         if x_te is not None:
@@ -489,19 +493,34 @@ class DPA(object):
                         self.loss_all_k_test[k] = loss.item()
                         self.loss_pred_all_k_test[k] = s1.item()
                         self.loss_var_all_k_test[k] = s2.item()
+                        ### added by FriederL ######################
+                        # loss from latent prediction decoding (ldp)
+                        pred1, pred2, _, _ = self.model.predict(x=slp_te, double=True)
+                        ldp_loss, s1_pred, s2_pred = energy_loss_two_sample(x_te, pred1, pred2, beta=self.beta, verbose=True)
+                        self.loss_latent_pred_test[k] = ldp_loss.item()
+                        self.loss_pred_latent_pred_test = s1_pred.item()
+                        self.loss_var_latent_pred_test = s2_pred.item()
             self.train_mode()
             if print_all_k:
                 print_loss_str += "(test)\t"
                 print_loss_str += ", ".join("{:.4f}".format(f) for f in self.loss_all_k_test[:(k_max + 1)]) + "\n"
                 print_loss_str += " pred \t" + ", ".join("{:.4f}".format(f) for f in self.loss_pred_all_k_test[:(k_max + 1)]) + "\n"
                 print_loss_str += " var \t" + ", ".join("{:.4f}".format(f) for f in self.loss_var_all_k_test[:(k_max + 1)]) + "\n"
+                # add here printing of my losses
+                print_loss_str += " test_ldp \t" + ", ".join("{:.4f}".format(f) for f in self.loss_latent_pred_test[:(k_max + 1)]) + "\n"
+                #print_loss_str += " ldp_pred \t" + ", ".join("{:.4f}".format(f) for f in self.loss_pred_latent_pred_test[:(k_max + 1)]) + "\n"
+                #print_loss_str += " ldp_var \t" + ", ".join("{:.4f}".format(f) for f in self.loss_var_latent_pred_test[:(k_max + 1)]) + "\n"
+
+
+
+
             else:
                 loss_mean = np.mean(np.array(self.loss_all_k_test)[:(k_max + 1)])
                 loss_min = np.min(np.array(self.loss_all_k_test)[:(k_max + 1)])
                 loss_s1_mean = np.mean(np.array(self.loss_pred_all_k_test)[:(k_max + 1)])
                 loss_s2_mean = np.mean(np.array(self.loss_var_all_k_test)[:(k_max + 1)])
-                #print_loss_str += f"; test average loss {loss_mean:.4f}, {loss_s1_mean:.4f}, {loss_s2_mean:.4f}, min {loss_min:.4f}"
-                print_loss_str += f"{loss_mean:.4f}, {loss_s1_mean:.4f}, {loss_s2_mean:.4f}, {loss_min:.4f}"
+                print_loss_str += f"; test average loss {loss_mean:.4f}, {loss_s1_mean:.4f}, {loss_s2_mean:.4f}, min {loss_min:.4f}"
+                #print_loss_str += f"{loss_mean:.4f}, {loss_s1_mean:.4f}, {loss_s2_mean:.4f}, {loss_min:.4f}"
 
         if printout:
             print(print_loss_str)

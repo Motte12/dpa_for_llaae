@@ -1,0 +1,18 @@
+{
+    "output_dir": "/work/fl53wumy-llaae_data_new/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_training_output",
+    "dataset_trefht": "/work/fl53wumy-llaae_data_new/fl53wumy-llaae_data_new-1748049607/llaae_data/Europe_subset_TREFHT_CESM2_LE_5daily_JJA/stacked_TREFHT_JJA.nc",
+    "dataset_z500": "/work/fl53wumy-llaae_data_new/fl53wumy-llaae_data_new-1748049607/llaae_data/PC_time_series_Z500_5daily_JJA/pseudoPCs_EOFs_Z500_5daily_100ensmembers_JJA_not_scaled.nc",
+    "latent_dims": [100,50,25,20,5,2],
+    "num_layer": 6,
+    "hidden_dim": 100,
+    "training_epochs": 1000,
+    "save_model_every": 50,
+    "print_every_epoch": 1,
+    "noise_dim": 20,
+    "coef_match_latent": 0,
+    "learning_rate": 1e-4,
+    "beta": 1
+    
+    
+    
+}
