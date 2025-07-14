@@ -63,6 +63,9 @@ def main():
     print("Now starting training ...")
     dpa.train(x_tr, x_te, batch_size=500, num_epochs=args.training_epochs, save_model_every=5, print_every_nepoch=1, save_dir=args.save_dir, save_loss=True)
     print("Training completed")
+    
+    
+    
     def parse_log_file(log_file_path):
         """
         Parse the .log file to extract training and testing losses.
