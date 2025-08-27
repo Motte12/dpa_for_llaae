@@ -19,6 +19,9 @@ regression_test/*/new_output_models
 regression_test/*/new_log
 output_dir/
 
+# pickle files 
+*.pkl
+
 # data files
 data/
 

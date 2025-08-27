@@ -91,7 +91,7 @@ def main():
         settings = json.load(file)
     
     # create save directory
-    save_dir = f"{settings['output_dir']}_{latent_dim}_{num_layers}_{hidden_dim}_{noise_dim_dec}_{in_dim_lm}_{noise_dim_lm}_{num_layers_lm}_{hidden_dim_lm}_encoderis{encoder}_lambda{lam}/"
+    save_dir = f"{settings['output_dir']}_{latent_dim}_{num_layers}_{hidden_dim}_{noise_dim_dec}_{in_dim_lm}_{noise_dim_lm}_{num_layers_lm}_{hidden_dim_lm}_encoderis{encoder}_lambda{lam}_bs{batch_size}/"
     
     # create directory
     os.makedirs(save_dir, exist_ok=True)
@@ -151,8 +151,8 @@ def main():
     print("z500 shape", z500.shape)
     
     
-    z500_train = z500[:128000,:]
-    z500_test = z500[-64000:,:]
+    z500_train = z500[:int(128000),:]
+    z500_test = z500[int(-64000):,:]
 
     # remove NaNs from data
     x_tr_reduced, mask_x_tr = ut.remove_nan_columns(x_tr)
@@ -212,8 +212,12 @@ def main():
                         out_act=out_act, 
                         resblock=resblock).to(device)
     
-    # set one combined or individual optimizers
+    # print model state dict
+    print("MODEL INITIALISATION")
+    for name, tensor in model_enc.state_dict().items():
+        print(f"{name}: {tensor.shape}")
     
+    # set one combined or individual optimizers
     #optimizer = torch.optim.Adam(list(model_enc.parameters()) + list(model_dec.parameters()) + list(model_pred.parameters()), lr=lr)
     if args.encoder == "learnable":
         optimizer_enc = torch.optim.Adam(model_enc.parameters(), lr=args.lr)
@@ -546,6 +550,14 @@ def main():
         loss_s1_dpa_te.append(s1_te_dpa/len(test_loader_in))
         loss_s2_dpa_te.append(s2_te_dpa/len(test_loader_in))
         
+        ##################
+        ### Save Model ###
+        ##################
+        if (epoch_idx + 1) % 10 == 0:
+            torch.save(model_enc.state_dict(), save_dir + "model_enc_" + str(epoch_idx + 1) + ".pt")
+            torch.save(model_dec.state_dict(), save_dir + "model_dec_" + str(epoch_idx + 1) + ".pt")
+            torch.save(model_pred.state_dict(), save_dir + "model_pred_" + str(epoch_idx + 1) + ".pt")
+
         
         ############
         ### Plot ###

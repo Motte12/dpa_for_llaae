@@ -17,6 +17,267 @@ import numpy as np
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
+def energy_loss_per_dim_efficient(x_true, x_est, beta=1.0, verbose=True):
+    """
+    Per-feature energy score (one value per data_dim) with O(N M log M) time and O(N M) memory.
+    Suitable for large N. Default beta=1.
+
+    Args
+    ----
+    x_true : (N, D) tensor
+        One true sample per data point (rows = samples, cols = features).
+    x_est : list[(N, D)] or (N, M, D) tensor
+        Either a list of M ensemble tensors (one (N,D) per member),
+        or a stacked tensor with M in axis=1.
+        Each data point i has M draws y_{i,m} from the estimated distribution.
+    beta : float, default=1.0
+        Energy score exponent. This routine is optimized for beta=1 (L1).
+        For beta=2 we use a closed form. For other beta we fall back to a
+        minibatch Monte Carlo approximation (still per-dim and memory-safe).
+    verbose : bool, default=True
+        If True, returns (3, D): [ES, s1, s2]; else (D,).
+
+    Returns
+    -------
+    out : (D,) or (3, D) tensor
+        Per-feature energy score (and optionally the two terms).
+    """
+    if x_true.ndim != 2:
+        raise ValueError("x_true must be (N, D)")
+    N, D = x_true.shape
+
+    # Standardize x_est to (N, M, D)
+    if isinstance(x_est, list):
+        # stack along new axis 1 (M members)
+        est = torch.stack(x_est, dim=1)  # (N, M, D)
+    else:
+        if x_est.ndim == 2:
+            # Interpret (N*M, D) stacked vertically → split every N rows
+            # (kept for backward compatibility with your original function)
+            M = x_est.shape[0] // N
+            est = torch.stack(list(torch.split(x_est, N, dim=0)), dim=1)  # (N, M, D)
+        elif x_est.ndim == 3:
+            est = x_est  # (N, M, D)
+        else:
+            raise ValueError("x_est must be list of (N,D), (N*M,D), or (N,M,D)")
+
+    N2, M, D2 = est.shape
+    assert N2 == N and D2 == D, "Shape mismatch between x_true and x_est"
+
+    # Broadcast true to (N, M, D)
+    true_b = x_true.unsqueeze(1).expand(N, M, D)
+
+    if beta == 1 or abs(beta - 1.0) < 1e-12:
+        # -------------------------
+        # beta = 1 (L1) -> exact, efficient
+        # s1 = E |X - Y|  (mean over i,m)
+        s1 = (true_b - est).abs().mean(dim=(0,1))  # (D,)
+
+        # s2 = E |Y - Y'| (mean over i of average pairwise absolute diff over m≠m')
+        # For each (i,d), average absolute difference over the M ensemble members can be computed from the sorted values:
+        #   AAD(i,d) = (2 / (M*(M-1))) * sum_{k=1..M} (2k - M - 1) * y_(i,k,d)
+        # where y_(i,k,d) is the k-th order statistic. Then s2 = mean_i AAD(i,d).
+        est_sorted, _ = torch.sort(est, dim=1)              # (N, M, D)
+        # weights w_k = 2k - (M + 1), shape (M,)
+        w = torch.arange(1, M+1, device=est.device, dtype=est.dtype)
+        w = 2*w - (M + 1)
+        # weighted sum over sorted samples → (N, D)
+        aad_num = (est_sorted * w.view(1, M, 1)).sum(dim=1) # (N, D)
+        aad = (2.0 / (M * (M - 1))) * aad_num               # (N, D)
+        s2 = aad.mean(dim=0)                                 # (D,)
+
+        es = s1 - 0.5 * s2
+
+        if verbose:
+            return torch.stack([es, s1, s2], dim=0)          # (3, D)
+        else:
+            return es                                        # (D,)
+
+    elif beta == 2 or abs(beta - 2.0) < 1e-12:
+        # -------------------------
+        # beta = 2 (L2) -> closed form using second moments
+        # s1 = E ||X - Y||_2^2 per-feature reduces to E[(X - Y)^2]:
+        s1 = ((true_b - est) ** 2).mean(dim=(0,1))           # (D,)
+        # s2 = E ||Y - Y'||_2^2 per-feature -> 2 * Var(Y):
+        # average across m of (Y - mean_m Y)^2, then multiply by 2
+        mu = est.mean(dim=1, keepdim=True)                   # (N,1,D)
+        var = ((est - mu) ** 2).mean(dim=1)                  # (N,D)
+        s2 = 2.0 * var.mean(dim=0)                           # (D,)
+        es = s1 - 0.5 * s2
+
+        if verbose:
+            return torch.stack([es, s1, s2], dim=0)
+        else:
+            return es
+
+    else:
+        # -------------------------
+        # generic beta in (0,2]: do a memory-safe Monte Carlo over pairs
+        # (per-dim, without constructing (N*M x N*M)).
+        # You can increase K for accuracy vs. speed; K≈min(256, M) is often enough.
+        K = min(256, M)
+
+        # s1 ≈ mean_m |X - Y|^beta
+        s1 = (true_b - est).abs().pow(beta).mean(dim=(0,1))  # (D,)
+
+        # s2 ≈ E |Y - Y'|^beta using K random pairs per (i)
+        # sample K indices with replacement per (i)
+        idx1 = torch.randint(0, M, (N, K), device=est.device)
+        idx2 = torch.randint(0, M, (N, K), device=est.device)
+        y1 = est.gather(1, idx1.unsqueeze(-1).expand(N, K, D))  # (N,K,D)
+        y2 = est.gather(1, idx2.unsqueeze(-1).expand(N, K, D))  # (N,K,D)
+
+        s2 = (y1 - y2).abs().pow(beta).mean(dim=(0,1))        # (D,)
+        es = s1 - 0.5 * s2
+
+        if verbose:
+            return torch.stack([es, s1, s2], dim=0)
+        else:
+            return es
+
+
+def plot_2_distr(index, dpa_avgs, analogue_avgs, ds_true, w_da, vmin, vmax, title=""):
+    # Plot histogram with that range
+    plt.figure(figsize=(8, 5))
+    
+    # analogue Temperature distribution
+    plt.hist(
+        analogue_avgs.values,
+        bins=30,
+        range=(vmin, vmax),   # <-- only from -2.0 to 2.0
+        density=True,
+        alpha=0.75
+    )
+    
+    # dpa generated distribution
+    plt.hist(
+        dpa_avgs.values,
+        bins=30,
+        range=(vmin, vmax),   # <-- only from -2.0 to 2.0
+        density=True,
+        alpha=0.75
+    )
+    plt.xlabel("Value")
+    plt.ylabel("Density")
+    plt.title(title)
+    
+    
+    # include actual value here!!
+    true_temp = ds_true.TREFHT.sel(lat=slice(48,54), lon=slice(6,15)).isel(time=index).weighted(w_da).mean(dim=('lat', 'lon')).values
+    plt.axvline(x=true_temp, color='red', linestyle='--', linewidth=2,
+                label=f'x = {true_temp}')
+    plt.show()    
+    
+
+def extract_dpa_tsamples(z500, dpa_t_samples, index, coord_ds, mask):
+    z500_sample = z500[index, :] 
+
+    # create empty index to store temperature
+    temps_for_zsample = np.zeros((97, 1024))#[]
+    print(temps_for_zsample.shape)
+    print(type(dpa_t_samples[-1]))
+
+    
+    if isinstance(dpa_t_samples[-1], np.ndarray): # check what type arrays in dpa_t_samples list have 
+        for i, sample in enumerate(dpa_t_samples):
+            #print(i)
+            #print(sample[index, :].shape)
+            #temps_for_zsample.append(sample[index, :])
+            temps_for_zsample[i,:] = restore_nan_columns(sample[index, :][None, :], mask).detach().numpy()
+    
+    elif isinstance(dpa_t_samples[-1], xr.DataArray): # check what type arrays in dpa_t_samples list have
+        for i, sample in enumerate(dpa_t_samples):
+            #print(i)
+            #print(sample[index, :].shape)
+            #temps_for_zsample.append(sample[index, :])
+            #temps_for_zsample[i,:] = sample[index, :].values
+            temps_for_zsample[i,:] = restore_nan_columns(sample[index, :].values[None, :], mask).detach().numpy()
+
+    
+    elif isinstance(dpa_t_samples[-1], torch.Tensor): # check what type arrays in dpa_t_samples list have
+        for i, sample in enumerate(dpa_t_samples):
+            #print(i)
+            # rstore orig shape, need to add 0th dimension for that
+            temps_for_zsample[i,:] = restore_nan_columns(sample[index, :][None, :], mask).detach().numpy()
+
+
+    # transform temps_for_zsample into xarray
+    temps_for_zsample_xr = torch_to_dataarray(temps_for_zsample, coord_ds, lat_dim=32, lon_dim=32, name="TREFHT")
+
+    return temps_for_zsample_xr, z500_sample
+
+def find_analogues(t_dataarray, pc_scores_ds, z500_sample, no_pcs, no_nearest):
+    
+    # compute differences between each sample and the "target" Z500 sample
+    diff  = pc_scores_ds[:,:no_pcs] - z500_sample.numpy()[:no_pcs]
+
+    # compute distances (euclidean norm)
+    dists = np.linalg.norm(diff, axis=1)  
+    
+    # find the no_nearest smallest distances
+    no_nearest = 97
+    top_idxs = np.argsort(dists)[:no_nearest]
+
+    # 3) slice out those rows from temperature data
+    nearest_temps = t_dataarray.isel(time=top_idxs) 
+
+    return nearest_temps, top_idxs
+
+    
+
+def load_dpa_predicts(path, mask, save_array=False):
+    dpa_t_samples_raw = []
+    dpa_t_samples = []
+    # 3D 2x3x4 tensor of zeros
+    t_arr_raw = np.zeros((2,2)) # dummy 
+    t_arr_restored = np.zeros((2,2)) # dummy
+    if save_array:
+        t_arr_raw = torch.zeros((98, 64000, 648)) # too large for memory
+        t_arr_restored = torch.zeros((98, 64000, 1024)) # too large for memory
+    for i in range(1,98):
+        print(i)
+        t_sample = torch.load(f"{path}gen{i}_te.pt", map_location=torch.device('cpu'))
+        dpa_t_samples_raw.append(t_sample)
+        if save_array:
+            dpa_t_sample_restored = restore_nan_columns(t_sample, mask)
+            t_arr_raw[i, :, :] = t_sample
+            t_arr_restored[i, :, :] = dpa_t_sample_restored
+
+            
+        #dpa_t_samples.append(dpa_t_sample_restored)
+        
+        # insert into array (causes memory problems)
+        #print(dpa_t_sample_restored.shape)
+        #
+    return dpa_t_samples_raw, dpa_t_samples, t_arr_raw, t_arr_restored
+
+def rank_histogram(truth, ensemble):
+    """
+    Compute the rank of truth among each ensemble member set.
+    
+    Parameters
+    ----------
+    truth : array_like, shape (n_cases,)
+        The observed “true” values.
+    ensemble : array_like, shape (n_cases, n_members)
+        The ensemble forecasts for each case.
+    
+    Returns
+    -------
+    ranks : ndarray, shape (n_cases,)
+        Integer ranks in 0..n_members (inclusive), where
+        rank i means truth falls between sorted ensemble[i-1] and ensemble[i].
+    """
+    truth = np.asarray(truth)
+    ens   = np.asarray(ensemble)
+    n_cases, n_members = ens.shape
+
+    # Append truth into each member set and argsort
+    # For each case, count how many ensemble values are < truth:
+    # that count is the rank (0 means truth below all, n_members means above all)
+    ranks = np.sum(ens < truth[:, None], axis=1)
+    return ranks
+    
 def plot_all_losses(
     loss_total_tr, loss_total_te, loss_s1_tr_total, loss_s2_tr_total,
     loss_s1_te_total, loss_s2_te_total,
@@ -105,9 +366,12 @@ def restore_nan_columns(reduced_tensor: torch.Tensor, column_mask: torch.Tensor)
     restored_tensor[:, column_mask] = reduced_tensor
     return restored_tensor
 
-def plot_temperature_panel(ax, dataarray, vmax_shared, sample_nr=None, title=""):
+def plot_temperature_panel(ax, dataarray, vmax_shared, sample_nr=None, no_levels=11, levels=None, cbar=False, cmap="coolwarm", title=""):
     """
     Plot a single temperature panel on a given axis with Cartopy.
+
+    create figure first:
+    fig, axs = plt.subplots(nrows=4, ncols=5, figsize=(20, 15), subplot_kw={'projection': ccrs.PlateCarree()})
 
     Parameters:
     ----------
@@ -120,21 +384,25 @@ def plot_temperature_panel(ax, dataarray, vmax_shared, sample_nr=None, title="")
     vmax_shared : float
         Symmetric max value for colormap scaling (vmin = -vmax).
     """
-    levels = np.linspace(-5, 5, 11)
+    if levels is None:
+        levels = np.linspace(-5, 5, no_levels)
+
+    else:
+        levels=levels
 
     p = dataarray.plot(
         ax=ax,
         transform=ccrs.PlateCarree(),
-        cmap='coolwarm',
+        cmap=cmap,
         vmin=-vmax_shared,
         vmax=vmax_shared,
         levels=levels,
-        add_colorbar=False
+        add_colorbar=cbar
     )
     ax.set_title(title)
     ax.coastlines(resolution='110m', linewidth=1)
     ax.add_feature(cfeature.BORDERS, linestyle=':')
-    ax.add_feature(cfeature.LAND, facecolor='lightgray', alpha=0.3)
+    ax.add_feature(cfeature.LAND, facecolor='lightgray', alpha=0.1)
     #ax.gridlines(draw_labels=False)
     if sample_nr is not None:
         ax.text(
@@ -170,7 +438,15 @@ def torch_to_dataarray(x_tensor, coords_ds, lat_dim=32, lon_dim=32, name="variab
         The reshaped and labeled data as an xarray.DataArray.
     """
     # Step 1: Convert to NumPy
-    data_np = x_tensor.detach().cpu().numpy()
+    # data_np = x_tensor.detach().cpu().numpy()
+
+    # Step 1: Convert to NumPy
+    if isinstance(x_tensor, np.ndarray):
+        # x is a NumPy array
+        print("input array is numpy array")
+        data_np = x_tensor
+    elif isinstance(x_tensor, torch.Tensor):
+        data_np = x_tensor.detach().cpu().numpy()
 
     # Step 2: Determine time_steps and reshape
     time_steps = data_np.shape[0]
