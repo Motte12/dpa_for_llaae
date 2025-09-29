@@ -1,0 +1,28 @@
+device: cpu
+torch.Size([128000, 1024])
+torch.Size([64000, 1024])
+z500 dataset shape (476900, 1001)
+z500 shape torch.Size([476900, 1001])
+device: cpu
+DPA model created
+Now loading DPA ensemble restored including nans
+Tensor list raw length: 100
+Tensor list raw elements shape: torch.Size([64000, 648])
+Traceback (most recent call last):
+  File "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/results_sheet_master.py", line 141, in <module>
+    main()
+    ~~~~^^
+  File "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/results_sheet_master.py", line 87, in main
+    tensor_list, stacked, stacked_reshaped, ds = ut.load_dpa_arrays(path=f"{save_path_ensemble_single}/",
+                                                 ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                                                    mask=mask,
+                                                                    ^^^^^^^^^^
+                                                                    ds_coords=ds_test,
+                                                                    ^^^^^^^^^^^^^^^^^^
+                                                                    ens_members=ens_members,
+                                                                    ^^^^^^^^^^^^^^^^^^^^^^^^
+                                                                    save_path=f"{save_path_ensemble_single}")
+                                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/utils.py", line 296, in load_dpa_arrays
+    stacked_reshaped_raw = stacked_raw.reshape(stacked_raw.shape[0], stacked_raw.shape[1], 32, 32)
+RuntimeError: shape '[100, 64000, 32, 32]' is invalid for input of size 4147200000

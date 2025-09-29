@@ -1,0 +1,29 @@
+device: cpu
+torch.Size([128000, 1024])
+torch.Size([64000, 1024])
+z500 dataset shape (476900, 1001)
+z500 shape torch.Size([476900, 1001])
+device: cpu
+DPA model created
+Now loading DPA ensemble restored including nans
+Tensor list raw length: 100
+Tensor list raw elements shape: torch.Size([64000, 648])
+Traceback (most recent call last):
+  File "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/results_sheet_master.py", line 141, in <module>
+    main()
+    ~~~~^^
+  File "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/results_sheet_master.py", line 87, in main
+    tensor_list, stacked, stacked_reshaped, ds = ut.load_dpa_arrays(path=f"{save_path_ensemble_single}/",
+                                                 ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                                                    mask=mask,
+                                                                    ^^^^^^^^^^
+                                                                    ds_coords=ds_test,
+                                                                    ^^^^^^^^^^^^^^^^^^
+                                                                    ens_members=ens_members,
+                                                                    ^^^^^^^^^^^^^^^^^^^^^^^^
+                                                                    save_path=f"{save_path_ensemble_single}")
+                                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/utils.py", line 305, in load_dpa_arrays
+    "ensemble_member": np.arange(1,stacked_reshaped.shape[0]+1),
+                                   ^^^^^^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'stacked_reshaped' where it is not associated with a value

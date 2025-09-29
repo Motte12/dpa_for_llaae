@@ -1,0 +1,31 @@
+device: cpu
+torch.Size([128000, 1024])
+torch.Size([64000, 1024])
+z500 dataset shape (476900, 1001)
+z500 shape torch.Size([476900, 1001])
+device: cpu
+DPA model created
+Now loading DPA ensemble restored including nans
+Tensor list raw length: 100
+Tensor list raw elements shape: torch.Size([64000, 648])
+(100, 64000, 648)
+<xarray.Dataset> Size: 17GB
+Dimensions:          (ensemble_member: 100, time: 64000, lat_x_lon: 648)
+Coordinates:
+  * ensemble_member  (ensemble_member) int64 800B 1 2 3 4 5 ... 96 97 98 99 100
+  * time             (time) object 512kB 1995-07-27 00:00:00 ... 2100-08-31 0...
+  * lat_x_lon        (lat_x_lon) int64 5kB 0 1 2 3 4 5 ... 643 644 645 646 647
+Data variables:
+    TREFHT           (ensemble_member, time, lat_x_lon) float32 17GB 1.767 .....
+Now loading DPA ensemble restored including nans
+Tensor list length: 100
+Tensor list elements shape: torch.Size([64000, 1024])
+<xarray.Dataset> Size: 26GB
+Dimensions:          (ensemble_member: 100, time: 64000, lat: 32, lon: 32)
+Coordinates:
+  * ensemble_member  (ensemble_member) int64 800B 1 2 3 4 5 ... 96 97 98 99 100
+  * time             (time) object 512kB 1995-07-27 00:00:00 ... 2100-08-31 0...
+  * lat              (lat) float64 256B 34.4 35.34 36.28 ... 61.73 62.67 63.61
+  * lon              (lon) float64 256B -11.25 -10.0 -8.75 ... 25.0 26.25 27.5
+Data variables:
+    TREFHT           (ensemble_member, time, lat, lon) float32 26GB nan ... 1...

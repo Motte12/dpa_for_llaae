@@ -17,6 +17,67 @@ import numpy as np
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
+####################################
+### Spatial Evaluation functions ###
+####################################
+def pearsonr_cols(x, y, dim=0, eps=1e-12):
+    """
+    Pearson correlation per feature along `dim` (default: samples axis).
+    x, y: tensors of the same shape, e.g. (n_samples, n_features)
+    Returns: tensor of shape equal to the non-reduced dims (e.g. (n_features,))
+    """
+    # center
+    x_mean = x.mean(dim=dim, keepdim=True)
+    y_mean = y.mean(dim=dim, keepdim=True)
+    x_c = x - x_mean
+    y_c = y - y_mean
+
+    # numerator: covariance (without / (n-1) since it cancels in correlation)
+    num = (x_c * y_c).sum(dim=dim)
+
+    # denominator: product of std devs
+    x_ss = (x_c * x_c).sum(dim=dim)
+    y_ss = (y_c * y_c).sum(dim=dim)
+    den = (x_ss * y_ss).sqrt().clamp_min(eps)
+
+    return num / den
+
+def reliability_index(counts, normalize=True):
+    """
+    Compute Reliability Index (RI) for a rank histogram.
+
+    Parameters
+    ----------
+    counts : array-like, shape (B,)
+        Bin counts of the rank histogram.
+    normalize : bool, default=True
+        If True, scale RI into [0, 1].
+
+    Returns
+    -------
+    RI : float
+        Reliability Index (0 = flat, higher = less reliable).
+    """
+    counts = np.asarray(counts, dtype=float)
+    N = counts.sum()
+    B = counts.size
+    if N == 0:
+        return np.nan  # undefined if no counts
+    
+    freqs = counts / N
+    RI_raw = np.abs(freqs - 1.0/B).sum()
+
+    if normalize:
+        RI = RI_raw / (2.0 * (1 - 1.0/B))
+        return RI
+    else:
+        return RI_raw
+
+####################################
+####################################
+####################################
+
+        
 def energy_loss_per_dim_efficient(x_true, x_est, beta=1.0, verbose=True):
     """
     Per-feature energy score (one value per data_dim) with O(N M log M) time and O(N M) memory.
@@ -223,17 +284,156 @@ def find_analogues(t_dataarray, pc_scores_ds, z500_sample, no_pcs, no_nearest):
 
     return nearest_temps, top_idxs
 
+def load_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None):
+    #file_list = sorted(f for f in os.listdir(path) if f.endswith(".pt"))
+
+
+    print("Now loading DPA ensemble restored including nans")
+    tensor_list_raw = [torch.load(f"{path}gen{i}_te.pt", map_location=torch.device('cpu')) for i in range(1,ens_members+1)] #98 #this is loading raw arrays without nans
+    print("Tensor list raw length:", len(tensor_list_raw))
+    print("Tensor list raw elements shape:", tensor_list_raw[0].shape)
+    stacked_raw = torch.stack(tensor_list_raw)  # shape: (N, T, H, W)
+    stacked_reshaped_raw = stacked_raw.reshape(stacked_raw.shape[0], stacked_raw.shape[1], stacked_raw.shape[2])
+    print((stacked_raw.shape[0], stacked_raw.shape[1], stacked_raw.shape[2]))
+
+
+    
+    # create dataset
+    ds_raw = xr.Dataset({
+                    "TREFHT": xr.DataArray(stacked_reshaped_raw.detach().numpy(), 
+                         dims=("ensemble_member", "time", "lat_x_lon"),
+                         coords={
+                                "ensemble_member": np.arange(1,stacked_reshaped_raw.shape[0]+1),
+                                "time": ds_coords.time,
+                                "lat_x_lon": np.arange(stacked_raw.shape[2])
+                                },
+                                          )
+    })
+    print(ds_raw)
+    if save_path is not None:
+        # save to zarr
+        #ds_raw.to_zarr(f"{save_path}/raw_dpa_ens_100_dataset_restored.zarr", consolidated=True, encoding={"TREFHT": {"_FillValue": None}})
+        ds_raw.to_netcdf(f"{save_path}/raw_dpa_ens_100_dataset_restored.nc", format="NETCDF4")
+        
+    ### Restore NaNs ###
+    
+    # Load and stack into one tensor
+    print("Now loading DPA ensemble restored including nans")
+    tensor_list = [restore_nan_columns(torch.load(f"{path}gen{i}_te.pt", map_location=torch.device('cpu')), mask) for i in range(1,ens_members+1)] #98 #this is loading raw arrays without nans
+    print("Tensor list length:", len(tensor_list))
+    print("Tensor list elements shape:", tensor_list[0].shape)
+    stacked = torch.stack(tensor_list)  # shape: (N, T, H, W)
+    stacked_reshaped = stacked.reshape(stacked.shape[0], stacked.shape[1], 32, 32)
+
+
+    
+    # create dataset
+    ds = xr.Dataset({
+                    "TREFHT": xr.DataArray(stacked_reshaped.detach().numpy(), 
+                         dims=("ensemble_member", "time", "lat", "lon"),
+                         coords={
+                                "ensemble_member": np.arange(1,stacked_reshaped.shape[0]+1),
+                                "time": ds_coords.time,
+                                "lat": ds_coords.lat,
+                                "lon": ds_coords.lon
+                                },
+                                          )
+    })
+    print(ds)
+    if save_path is not None:
+        # save to zarr
+        #ds.to_zarr(f"{save_path}/dpa_ens_100_dataset_restored.zarr", consolidated=True, encoding={"TREFHT": {"_FillValue": None}})
+        ds.to_netcdf(f"{save_path}/dpa_ens_100_dataset_restored.nc", format="NETCDF4")
     
 
-def load_dpa_predicts(path, mask, save_array=False):
+    return tensor_list, stacked, stacked_reshaped, ds
+
+def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, climate_list=[]):
+    '''
+    climate_list: ["cf_gen", "gen"]: list of climates (counterfactual and factual) to laod and save
+    
+    returns:
+        lists containing [counterfactual, factual] arrays
+    '''
+    list_tensor_list = []
+    list_stacked = []
+    list_stacked_reshaped = []
+    list_ds = []
+
+    for climate in climate_list:
+        print("Now loading DPA ensemble restored including nans")
+        tensor_list_raw = [torch.load(f"{path}{climate}{i}_te.pt", map_location=torch.device('cpu')) for i in range(1,ens_members+1)] #98 #this is loading raw arrays without nans
+        print("Tensor list raw length:", len(tensor_list_raw))
+        print("Tensor list raw elements shape:", tensor_list_raw[0].shape)
+        stacked_raw = torch.stack(tensor_list_raw)  # shape: (N, T, H, W)
+        stacked_reshaped_raw = stacked_raw.reshape(stacked_raw.shape[0], stacked_raw.shape[1], stacked_raw.shape[2])
+        print((stacked_raw.shape[0], stacked_raw.shape[1], stacked_raw.shape[2]))
+    
+    
+        
+        # create dataset
+        ds_raw = xr.Dataset({
+                        "TREFHT": xr.DataArray(stacked_reshaped_raw.detach().numpy(), 
+                             dims=("ensemble_member", "time", "lat_x_lon"),
+                             coords={
+                                    "ensemble_member": np.arange(1,stacked_reshaped_raw.shape[0]+1),
+                                    "time": ds_coords.time,
+                                    "lat_x_lon": np.arange(stacked_raw.shape[2])
+                                    },
+                                              )
+        })
+        print(ds_raw)
+        if save_path is not None:
+            # save to zarr
+            #ds_raw.to_zarr(f"{save_path}/raw_dpa_ens_100_dataset_restored.zarr", consolidated=True, encoding={"TREFHT": {"_FillValue": None}})
+            ds_raw.to_netcdf(f"{save_path}/raw_dpa_ens_100_dataset_restored.nc", format="NETCDF4")
+            
+        ### Restore NaNs ###
+        
+        # Load and stack into one tensor
+        print("Now loading DPA ensemble restored including nans")
+        tensor_list = [restore_nan_columns(torch.load(f"{path}{climate}{i}_te.pt", map_location=torch.device('cpu')), mask) for i in range(1,ens_members+1)] #98 #this is loading raw arrays without nans
+        list_tensor_list.append(tensor_list)
+        print("Tensor list length:", len(tensor_list))
+        print("Tensor list elements shape:", tensor_list[0].shape)
+        stacked = torch.stack(tensor_list)  # shape: (N, T, H, W)
+        list_stacked.append(stacked)
+        stacked_reshaped = stacked.reshape(stacked.shape[0], stacked.shape[1], 32, 32)
+        list_stacked_reshaped.append(stacked_reshaped)
+    
+    
+        
+        # create dataset
+        ds = xr.Dataset({
+                        "TREFHT": xr.DataArray(stacked_reshaped.detach().numpy(), 
+                             dims=("ensemble_member", "time", "lat", "lon"),
+                             coords={
+                                    "ensemble_member": np.arange(1,stacked_reshaped.shape[0]+1),
+                                    "time": ds_coords.time,
+                                    "lat": ds_coords.lat,
+                                    "lon": ds_coords.lon
+                                    },
+                                              )
+        })
+        list_ds.append(ds)
+        print(ds)
+        if save_path is not None:
+            # save to zarr
+            #ds.to_zarr(f"{save_path}/dpa_ens_100_dataset_restored.zarr", consolidated=True, encoding={"TREFHT": {"_FillValue": None}})
+            ds.to_netcdf(f"{save_path}/dpa_ens_100_dataset_restored.nc", format="NETCDF4")
+    
+
+    return list_tensor_list, list_stacked, list_stacked_reshaped, list_ds
+
+def load_dpa_predicts(path, mask, save_array=False, raw_hull=(98,64000,648), restored_hull=(98,64000,1024)):
     dpa_t_samples_raw = []
     dpa_t_samples = []
     # 3D 2x3x4 tensor of zeros
     t_arr_raw = np.zeros((2,2)) # dummy 
     t_arr_restored = np.zeros((2,2)) # dummy
     if save_array:
-        t_arr_raw = torch.zeros((98, 64000, 648)) # too large for memory
-        t_arr_restored = torch.zeros((98, 64000, 1024)) # too large for memory
+        t_arr_raw = torch.zeros(raw_hull) # too large for memory
+        t_arr_restored = torch.zeros(restored_hull) # too large for memory
     for i in range(1,98):
         print(i)
         t_sample = torch.load(f"{path}gen{i}_te.pt", map_location=torch.device('cpu'))
@@ -414,6 +614,31 @@ def plot_temperature_panel(ax, dataarray, vmax_shared, sample_nr=None, no_levels
             fontsize=12
         )
     return p
+
+def plot_map(field, cmap="bwr", cmap_label = "variable"):
+    
+    # create plot with a map projection
+    fig, ax = plt.subplots(
+        subplot_kw={'projection': ccrs.PlateCarree()}, 
+        figsize=(8, 6)
+    )
+    
+    # plot the data
+    field.plot(ax=ax, transform=ccrs.PlateCarree(), cmap=cmap, cbar_kwargs={'label': cmap_label})
+    
+    # add coastlines and continents
+    ax.coastlines(resolution="50m", linewidth=1)
+    ax.add_feature(cfeature.BORDERS, linewidth=0.5, linestyle=":")
+    ax.add_feature(cfeature.LAND, facecolor="lightgray", alpha=0.5)
+    
+    # optional: gridlines
+    gl = ax.gridlines(draw_labels=True, linewidth=0.5, color='gray', alpha=0.5, linestyle='--')
+    gl.top_labels = False
+    gl.right_labels = False
+    
+    plt.show()
+
+    return fig, ax
 
 def torch_to_dataarray(x_tensor, coords_ds, lat_dim=32, lon_dim=32, name="variable"):
     """
