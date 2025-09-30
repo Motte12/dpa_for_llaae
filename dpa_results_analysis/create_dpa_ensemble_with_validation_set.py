@@ -32,7 +32,7 @@ import dpa_ensemble as de
 import utils as ut
 import evaluation
 
-def main_1():
+def main():
     ens_members = 100
     save_path_ensemble_single = "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -92,3 +92,6 @@ def main_1():
                                                                     ds_coords=ds_test,
                                                                     ens_members=ens_members,
                                                                     save_path=f"{save_path_ensemble_single}")
+
+if __name__ == "__main__":
+    main()

@@ -362,7 +362,8 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, cli
 
     for climate in climate_list:
         print("Now loading DPA ensemble restored including nans")
-        tensor_list_raw = [torch.load(f"{path}{climate}{i}_te.pt", map_location=torch.device('cpu')) for i in range(1,ens_members+1)] #98 #this is loading raw arrays without nans
+        print("Path:", f"{path}{climate}1_te.pt")
+        tensor_list_raw = [torch.load(f"{path}{climate}{i}_te.pt", map_location=torch.device('cpu'), weights_only=False) for i in range(1,ens_members+1)] #98 #this is loading raw arrays without nans
         print("Tensor list raw length:", len(tensor_list_raw))
         print("Tensor list raw elements shape:", tensor_list_raw[0].shape)
         stacked_raw = torch.stack(tensor_list_raw)  # shape: (N, T, H, W)
@@ -386,13 +387,13 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, cli
         if save_path is not None:
             # save to zarr
             #ds_raw.to_zarr(f"{save_path}/raw_dpa_ens_100_dataset_restored.zarr", consolidated=True, encoding={"TREFHT": {"_FillValue": None}})
-            ds_raw.to_netcdf(f"{save_path}/raw_dpa_ens_100_dataset_restored.nc", format="NETCDF4")
+            ds_raw.to_netcdf(f"{save_path}/raw_ETH_{climate}_dpa_ens_100_dataset.nc", format="NETCDF4")
             
         ### Restore NaNs ###
         
         # Load and stack into one tensor
         print("Now loading DPA ensemble restored including nans")
-        tensor_list = [restore_nan_columns(torch.load(f"{path}{climate}{i}_te.pt", map_location=torch.device('cpu')), mask) for i in range(1,ens_members+1)] #98 #this is loading raw arrays without nans
+        tensor_list = [restore_nan_columns(torch.load(f"{path}{climate}{i}_te.pt", map_location=torch.device('cpu'), weights_only=False), mask) for i in range(1,ens_members+1)] #98 #this is loading raw arrays without nans
         list_tensor_list.append(tensor_list)
         print("Tensor list length:", len(tensor_list))
         print("Tensor list elements shape:", tensor_list[0].shape)
@@ -420,7 +421,7 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, cli
         if save_path is not None:
             # save to zarr
             #ds.to_zarr(f"{save_path}/dpa_ens_100_dataset_restored.zarr", consolidated=True, encoding={"TREFHT": {"_FillValue": None}})
-            ds.to_netcdf(f"{save_path}/dpa_ens_100_dataset_restored.nc", format="NETCDF4")
+            ds.to_netcdf(f"{save_path}/ETH_{climate}_dpa_ens_100_dataset_restored.nc", format="NETCDF4")
     
 
     return list_tensor_list, list_stacked, list_stacked_reshaped, list_ds

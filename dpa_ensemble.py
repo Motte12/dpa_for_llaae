@@ -26,7 +26,7 @@ def load_test_data(settings_file_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_
 ):
     with open(settings_file_path, 'r') as file:
         settings = json.load(file)
-    
+
     ### Load temperature data ###
     ds = xr.open_dataset(settings['dataset_trefht'])
     
@@ -55,16 +55,38 @@ def load_test_data(settings_file_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_
     
     return z500_test, mask_x_te, ds, ds_test, x_te_reduced
 
-def load_eth_test_data():
+def load_eth_test_data(settings_file_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/dpa_train_settings.json"):
     
-    # TREFHT factual
+    # TREFHT 
+    ## factual
+    with open(settings_file_path, 'r') as file:
+        settings = json.load(file)
+    
+    ### Load temperature data ###
+    ds_test_eth_fact = xr.open_dataset(settings['dataset_trefht_eth_transient'])
+    
+    
+    # transform to torch tensors
+    x_te_eth_fact = ut.data_to_torch(ds_test_eth_fact, "TREFHT")
 
-    # TREFHT counterfactual
+    # remove NaNs from data
+    x_te_reduced_eth_fact, mask_x_te_eth_fact = ut.remove_nan_columns(x_te_eth_fact)
+    
+
+    ## counterfactual
+    
+    ### Load temperature data ###
+    ds_test_eth_cf = xr.open_dataset(settings['dataset_trefht_eth_nudged_shifted'])
+    
+    
+    # transform to torch tensors
+    x_te_eth_cf = ut.data_to_torch(ds_test_eth_cf, "TREFHT")
+
+    # remove NaNs from data
+    x_te_reduced_eth_cf, mask_x_te_eth_cf = ut.remove_nan_columns(x_te_eth_cf)
     
     
     # Z500
-    with open(settings_file_path, 'r') as file:
-        settings = json.load(file)
     
     ### Load temperature data ###
     ds_z500_pre = xr.open_dataset(settings['dataset_z500_eth_test'])
@@ -75,7 +97,7 @@ def load_eth_test_data():
     print("z500 dataset shape", ds_z500_standardized.shape)
     z500 = torch.from_numpy(ds_z500_standardized)
 
-    return z500
+    return z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf 
 
     
 
@@ -158,7 +180,8 @@ def create_dpa_model(device,
 
     return model_enc, model_dec, model_pred
 
-def create_ensemble(ensemble_size,
+def create_ensemble(ensemble_type,
+                    ensemble_size,
                     save_path,
                     device,
                     encoder,
@@ -181,8 +204,13 @@ def create_ensemble(ensemble_size,
                     create_counterfactual_ensemble=False
                    ):
     # load data
-    z500_test, mask, ds, ds_test, x_te_reduced = load_test_data()
-    
+    if ensemble_type == "LE":
+        z500_test, mask, ds, ds_test, x_te_reduced = load_test_data()
+
+    elif ensemble_type == "ETH":
+        z500_test, mask, ds_test, x_te_reduced, x_te_reduced_cf = load_eth_test_data() # x_te_reduced is x_te_reduced_eth_fact
+        # z500_standardized, mask_x_te_eth_fact, ds_test_eth_fact, x_te_reduced_eth_fact, x_te_reduced_eth_cf
+    print("Data loaded")
     # create model
     model_enc, model_dec, model_pred = create_dpa_model(device,
                                                         encoder,
@@ -214,9 +242,13 @@ def create_ensemble(ensemble_size,
             torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
 
     if create_counterfactual_ensemble is True:
+        # replace GMTs with 0 for counterfactual predictions
+        # HERE!
+        z500_test_cf = z500_test
+        z500_test_cf[:,-1] = 0
         for i in range(1, ensemble_size+1):
-            gen_te = model_dec(model_pred(z500_test.to(device)))
-            torch.save(gen_te, f"{save_path}/cf_gen{i}_te.pt")
+            gen_te_cf = model_dec(model_pred(z500_test_cf.to(device)))
+            torch.save(gen_te_cf, f"{save_path}/cf_gen{i}_te.pt")
 
     
 

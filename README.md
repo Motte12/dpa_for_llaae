@@ -5,6 +5,13 @@ joint_training/tuning/ --> contains tuning results of the joint model
 
 dpa_results_analysis/ --> structured/automated analysis of results
 
+## code
+
+- dpa_ensemble.py -> load trained DPA model and create the DPA ensemble (Factual and Counterfactual)
+- evaluation.py -> contains functions to evaluate DPA ensemble
+- utils.py -> contains all sort of helper functions
+
+
 ## Tuning
 - tuning analysis in "llaae_new/DistributionalPrincipalAutoencoder/joint_training/tuning/analyse_tuning.ipynb"
 - started tuning with start_tuning_slurm.sh
@@ -20,7 +27,7 @@ dpa_results_analysis/ --> structured/automated analysis of results
 	+ retrained model with same parameters is in /work/fl53wumy-llaae_data_new/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/
 
 ## Folders
-
+/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1 --> contains current model along with predicted DPA ensembles
 /work/fl53wumy-llaae_data_new/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1_noise1 --> contains same model (newly trained) as dpa_model3_tuning1 but with 100 noise dimensions instead of 20
 
 ## joint_training/analysing_dpa_results
@@ -49,4 +56,6 @@ dpa_results_analysis/ --> structured/automated analysis of results
    + rank_hist_map.ipynb
 
 **Workflow (starting from 1.) combined in dpa_results_analysis/results_sheet_master.py**
+
+
 
