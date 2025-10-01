@@ -105,6 +105,108 @@ def main():
     dpa_1400_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(4769,2*4769))
     dpa_1500_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(-4769,14307))
     
+    #############
+    ### Tests ###
+    #############
+    #dpa_ens_mean_fact_1300_restored = dpa_1300_fact_restored.mean(dim="ensemble_member")
+    #dpa_ens_mean_cf_1300_restored = dpa_1300_cf_restored.mean(dim="ensemble_member")
+
+    evaluation.plot_violins(truth = ds_test_1300_eth_fact, 
+                            dpa_ensemble = dpa_1300_fact_restored,
+                            save_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/ETH_analysis_results/factual_extreme_violins")
+
+    evaluation.plot_violins(truth = ds_test_1300_eth_cf, 
+                            dpa_ensemble = dpa_1300_cf_restored,
+                            save_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/ETH_analysis_results/counterfactual_extreme_violins"
+                            )
+
+    sys.exit()
+
+    
+    
+    
+    ####################
+    ### Energy Score ###
+    ####################
+    
+    # for one grid-cell
+
+    # true grid cell (time-series per grid cell shape: (time steps, 1))
+    # 
+    
+    
+
+    # dpa ensemble for one grid cell list[(time steps,1), (time steps,1), ...]
+    # this is the reconstructed array containing 1024 grid cells (many with NaNs)
+    _, dpa_list, _, _, _ = ut.load_dpa_arrays(path="/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/",
+                                  mask = mask_x_te,
+                                  ds_coords = ds_test_eth_fact,
+                                  ens_members=100)
+    print("DPA tensor list:", len(dpa_list))
+    print("DPA tensor list element shape:", dpa_list[0].shape) # list elements contain all timesteps 14307 (3 x 4769)
+
+    
+    
+    e_loss_array = torch.zeros(3,648)
+    for i in range(648):
+        # keep only subset of tensors in list
+        dpa_list_subset = [t[:4769, i] for t in dpa_list]
+    
+        ### calculate energy score ###
+        e_loss = energy_loss(eth_fact_1300_test_reduced[:,i], dpa_list_subset)
+        e_loss_array[0,i] = e_loss[0].detach() 
+        e_loss_array[1,i] = e_loss[1].detach()
+        e_loss_array[2,i] = e_loss[2].detach()
+        print(i)
+        print("Energy Loss:", e_loss)
+
+    print("E Loss shape:", e_loss_array.shape)
+    
+    print("type mask:", type(mask_x_te))
+    print("mask shape:", mask_x_te.shape)
+    print("type e loss array:", type(e_loss_array))
+
+    
+    # restore NaN columns
+    e_loss_restored = ut.restore_nan_columns(e_loss_array[0,:].unsqueeze(0), mask_x_te)
+    s1_loss_restored = ut.restore_nan_columns(e_loss_array[1,:].unsqueeze(0), mask_x_te)
+    s2_loss_restored = ut.restore_nan_columns(e_loss_array[2,:].unsqueeze(0), mask_x_te)
+
+    print("e_loss_restored shape:", e_loss_restored.shape)
+
+    
+    # transform e_loss_array into xarray
+    e_loss_xr = ut.torch_to_dataarray(x_tensor = e_loss_restored, coords_ds = ds_test_eth_fact, lat_dim=32, lon_dim=32, name="energy_loss_total") # add oth dimensin 
+    s1_loss_xr = ut.torch_to_dataarray(x_tensor = s1_loss_restored, coords_ds = ds_test_eth_fact, lat_dim=32, lon_dim=32, name="s1_loss")
+    s2_loss_xr = ut.torch_to_dataarray(x_tensor = s2_loss_restored, coords_ds = ds_test_eth_fact, lat_dim=32, lon_dim=32, name="s2_loss")
+    print("E loss xr:", e_loss_xr)
+    
+    energy_levels = np.linspace(0.4, 1.1, 7)
+    levels = np.linspace(0.8, 2.0, 13)
+    
+    # plot energy score
+    fig, ax = ut.plot_map(e_loss_xr, energy_levels, cmap="YlOrRd")
+    ax.set_title("Energy Loss", fontsize=title_fontsize)
+    fig.savefig("ETH_analysis_results/energy_loss_map.png")
+    plt.show()
+
+    # plot S1 loss
+    fig, ax = ut.plot_map(s1_loss_xr, levels, cmap="YlOrRd")
+    ax.set_title("S1 Loss", fontsize=title_fontsize)
+    fig.savefig("ETH_analysis_results/S1_loss_map.png")
+    plt.show()
+
+    # plot s2 loss
+    fig, ax = ut.plot_map(s2_loss_xr, levels, cmap="YlOrRd")
+    ax.set_title("S2 Loss", fontsize=title_fontsize)
+    fig.savefig("ETH_analysis_results/S2_loss_map.png")
+    plt.show()
+    
+    
+
+    
+    
+    
     ###########################
     ### PEARSON CORRELATION ###
     ###########################
@@ -256,88 +358,180 @@ def main():
     fig.savefig("ETH_analysis_results/time_series_dpa_mean_vs_test_member.png")
     plt.show()
 
-
+    ##################################
     ### Regional mean temperatures ###
+    ##################################
 
-    # Germany
-
+    years = ["1960", "1980", "2000", "2020", "2040", "2060"]
+    
+    ### Germany ###
+    
     # coordinates 
     ger_lat_min = 48
     ger_lat_max = 54
     ger_lon_min = 6
     ger_lon_max = 15
 
+    for year in years:
+        ### Factual ###
+        fig, ax = evaluation.plot_dpa_time_series(true_t = ds_test_1300_eth_fact, 
+                                                  dpa_ens = dpa_1300_fact_restored, 
+                                                  dpa_ens_mean = dpa_ens_mean_fact_1300_restored,  
+                                                  lat_min = ger_lat_min, 
+                                                  lat_max = ger_lat_max, 
+                                                  lon_min = ger_lon_min, 
+                                                  lon_max = ger_lon_max, 
+                                                  plot_year = year,
+                                                  figsize_ts = figsize_ts,
+                                                  title_fontsize = title_fontsize,
+                                                  title = f"Factual Temperatures Germany {year}", 
+                                                  climate = "Factual"
+                                                  )        
+        fig.savefig(f"ETH_analysis_results/Germany/Germany_mean_fact_T_ts_{year}.png")
+        plt.show()
+    
+        ### Counterfactual ###
+        fig, ax = evaluation.plot_dpa_time_series(true_t = ds_test_1300_eth_cf, 
+                                                  dpa_ens = dpa_1300_cf_restored, 
+                                                  dpa_ens_mean = dpa_ens_mean_cf_1300_restored, 
+                                                  lat_min = ger_lat_min, 
+                                                  lat_max = ger_lat_max, 
+                                                  lon_min = ger_lon_min, 
+                                                  lon_max = ger_lon_max, 
+                                                  plot_year = year,
+                                                  figsize_ts = figsize_ts,
+                                                  title_fontsize = title_fontsize,
+                                                  title = f"Counterfactual Temperatures Germany {year}",
+                                                  climate = "Counterfactual")        
+        fig.savefig(f"ETH_analysis_results/Germany/Germany_mean_cf_T_ts_{year}.png")
+        plt.show()
+    
+    
+    ### Spain ###
+
+    # coordinates
+    sp_lat_min = 38
+    sp_lat_max = 42
+    sp_lon_min = -8
+    sp_lon_max = 0
+
+    for year in years:
+        ### Factual ###
+        fig, ax = evaluation.plot_dpa_time_series(true_t = ds_test_1300_eth_fact, 
+                                                  dpa_ens = dpa_1300_fact_restored, 
+                                                  dpa_ens_mean = dpa_ens_mean_fact_1300_restored,  
+                                                  lat_min = sp_lat_min, 
+                                                  lat_max = sp_lat_max, 
+                                                  lon_min = sp_lon_min, 
+                                                  lon_max = sp_lon_max, 
+                                                  plot_year = year,
+                                                  figsize_ts = figsize_ts,
+                                                  title_fontsize = title_fontsize,
+                                                  title = f"Factual Temperatures Spain {year}", 
+                                                  climate = "Factual"
+                                                  )        
+        fig.savefig(f"ETH_analysis_results/Spain/Spain_mean_fact_T_ts_{year}.png")
+        plt.show()
+
+        ### Counterfactual ###
+        fig, ax = evaluation.plot_dpa_time_series(true_t = ds_test_1300_eth_cf, 
+                                                  dpa_ens = dpa_1300_cf_restored, 
+                                                  dpa_ens_mean = dpa_ens_mean_cf_1300_restored, 
+                                                  lat_min = sp_lat_min, 
+                                                  lat_max = sp_lat_max, 
+                                                  lon_min = sp_lon_min, 
+                                                  lon_max = sp_lon_max, 
+                                                  plot_year = year,
+                                                  figsize_ts = figsize_ts,
+                                                  title_fontsize = title_fontsize,
+                                                  title = f"Counterfactual Temperatures Spain {year}",
+                                                  climate = "Counterfactual")        
+        fig.savefig(f"ETH_analysis_results/Spain/Spain_mean_cf_T_ts_{year}.png")
+        plt.show()
+    
+    
+    # end script
+    sys.exit()
+                          
+
     ### True (Test) temperature ###
     # true temperature - germany spatial average
-    temp_true_ger_pre = ds_test_1300_eth_fact.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
-    cf_temp_true_ger_pre = ds_test_1300_eth_cf.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
+    #temp_true_ger_pre = ds_test_1300_eth_fact.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
+    #cf_temp_true_ger_pre = ds_test_1300_eth_cf.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
 
     
     # create weights
     # 1) define weights as above
-    weights_ger = np.cos(np.deg2rad(temp_true_ger_pre['lat']))
+    #weights_ger = np.cos(np.deg2rad(temp_true_ger_pre['lat']))
     
     # 2) wrap in a DataArray so xarray knows which dim it belongs to
-    w_da_ger = xr.DataArray(weights_ger, coords={'lat': temp_true_ger_pre['lat']}, dims=['lat'])
+    #w_da_ger = xr.DataArray(weights_ger, coords={'lat': temp_true_ger_pre['lat']}, dims=['lat'])
     
-    temp_true_ger = temp_true_ger_pre.weighted(w_da_ger).mean(dim=('lat', 'lon'))
-    cf_temp_true_ger = cf_temp_true_ger_pre.weighted(w_da_ger).mean(dim=('lat', 'lon'))
-    print("cf_temp_true_ger:", cf_temp_true_ger)
+    #temp_true_ger = temp_true_ger_pre.weighted(w_da_ger).mean(dim=('lat', 'lon'))
+    #cf_temp_true_ger = cf_temp_true_ger_pre.weighted(w_da_ger).mean(dim=('lat', 'lon'))
+    #print("cf_temp_true_ger:", cf_temp_true_ger)
 
 
     ### DPA Ensemble ###
     # standard deviation, germany mean
-    dpa_ens_std = dpa_1300_fact_restored.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max)).std(dim="ensemble_member") # before: dpa_ensemble_restored.TREFHT
-    dpa_ens_std_ger = dpa_ens_std.weighted(w_da_ger).mean(dim=('lat', 'lon'))
+    #dpa_ens_std = dpa_1300_fact_restored.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max)).std(dim="ensemble_member") # before: dpa_ensemble_restored.TREFHT
+    #dpa_ens_std_ger = dpa_ens_std.weighted(w_da_ger).mean(dim=('lat', 'lon'))
 
     # ensemble mean, germany mean 
-    dpa_ens_mean_ger = dpa_ens_mean_fact_1300_restored.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon')) # before: dpa_ensemble_restored
-    print(dpa_ens_mean_ger.shape)
-    dpa_ens_mean_ger_cf = dpa_ens_mean_cf_1300_restored.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
+    #dpa_ens_mean_ger = dpa_ens_mean_fact_1300_restored.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon')) # before: dpa_ensemble_restored
+    #print(dpa_ens_mean_ger.shape)
+    #dpa_ens_mean_ger_cf = dpa_ens_mean_cf_1300_restored.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
 
     # ensemble germany average (ensemble_member, )
-    dpa_ens_ger_1300 = dpa_1300_fact_restored.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
-    print("dpa_ens_ger_1300:", dpa_ens_ger_1300.values.T.shape)
+    #dpa_ens_ger_1300 = dpa_1300_fact_restored.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
+    #print("dpa_ens_ger_1300:", dpa_ens_ger_1300.values.T.shape)
     
     
     # plot
-    n_stds = 2
-    lower_env = dpa_ens_mean_ger + n_stds * dpa_ens_std_ger 
-    upper_env = dpa_ens_mean_ger - n_stds * dpa_ens_std_ger
+    #n_stds = 2
+    #lower_env = dpa_ens_mean_ger + n_stds * dpa_ens_std_ger 
+    #upper_env = dpa_ens_mean_ger - n_stds * dpa_ens_std_ger
 
-    print("dpa_ens_mean_ger:", dpa_ens_mean_ger)
-    print("lower env:", lower_env)
-    print("upper env:", upper_env)
+    #print("dpa_ens_mean_ger:", dpa_ens_mean_ger)
+    #print("lower env:", lower_env)
+    #print("upper env:", upper_env)
     
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize_ts)
+    #fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize_ts)
 
-    year = "2040"
-    temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label="Factual Truth")
-    dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label="DPA factual mean")
+    #year = "2040"
+    #temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label="Factual Truth")
+    #dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label="DPA factual mean")
     
     # ADD COUNTERFACTUAL TEMPERATURE HERE
-    cf_temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label="CF Truth")
-    dpa_ens_mean_ger_cf.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label="DPA CF mean")
+    #cf_temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label="CF Truth")
+    #dpa_ens_mean_ger_cf.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label="DPA CF mean")
     # ################################## #
     
     
     # fill_between needs numpy arrays + axis
-    ax.fill_between(
-        dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).time.values,   # x-axis values (datetime64)
-        lower_env.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values,        # lower bound
-        upper_env.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values,        # upper bound
-        color="tab:orange", alpha=0.2, label=f"+/- {n_stds} std"
-    )
+    #ax.fill_between(
+    #    dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).time.values,   # x-axis values (datetime64)
+    #    lower_env.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values,        # lower bound
+    #    upper_env.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values,        # upper bound
+    #    color="tab:orange", alpha=0.2, label=f"+/- {n_stds} std"
+    #)
 
     
     
-    ax.legend()
+    #ax.legend()
     #plt.tight_layout()
-    ax.set_title("DPA mean-Temperature in Germany Domain", fontsize=title_fontsize)
-    fig.savefig("ETH_analysis_results/Germany_mean_T_ts.png")
-    plt.show()
+    #ax.set_title("DPA mean-Temperature in Germany Domain", fontsize=title_fontsize)
+    #fig.savefig("ETH_analysis_results/Germany_mean_T_ts.png")
+    #plt.show()
 
+    ####################
+    ### Violin plots ###
+    ####################
+
+    ##############################
     ### Germany Rank Histogram ###
+    ##############################
+    
     # 2) compute ranks
     """
     truth : array_like, shape (n_cases,)
@@ -439,7 +633,7 @@ def main():
     print("le_T_mean_spat_mean:", le_T_mean_spat_mean)
     
     ax.legend()
-    ax.set_title("European Domain Average Temperature", fontsize=title_fontsize)
+    ax.set_title("European Domain Average Yearly Average Temperature", fontsize=title_fontsize)
     fig.savefig("ETH_analysis_results/LE_Europe_Forced_response.png")
     plt.show()
 

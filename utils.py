@@ -346,7 +346,7 @@ def load_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None):
         ds.to_netcdf(f"{save_path}/dpa_ens_100_dataset_restored.nc", format="NETCDF4")
     
 
-    return tensor_list, stacked, stacked_reshaped, ds
+    return tensor_list, tensor_list_raw, stacked, stacked_reshaped, ds
 
 def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, climate_list=[]):
     '''
@@ -616,7 +616,7 @@ def plot_temperature_panel(ax, dataarray, vmax_shared, sample_nr=None, no_levels
         )
     return p
 
-def plot_map(field, cmap="bwr", cmap_label = "variable"):
+def plot_map(field, levels, cmap="bwr", cmap_label = "variable"):
     
     # create plot with a map projection
     fig, ax = plt.subplots(
@@ -625,7 +625,11 @@ def plot_map(field, cmap="bwr", cmap_label = "variable"):
     )
     
     # plot the data
-    field.plot(ax=ax, transform=ccrs.PlateCarree(), cmap=cmap, cbar_kwargs={'label': cmap_label})
+    field.plot(ax=ax,
+               transform=ccrs.PlateCarree(),
+               cmap=cmap,
+               levels=levels,
+               cbar_kwargs={'label': cmap_label, 'shrink': 0.7})
     
     # add coastlines and continents
     ax.coastlines(resolution="50m", linewidth=1)
@@ -637,7 +641,7 @@ def plot_map(field, cmap="bwr", cmap_label = "variable"):
     gl.top_labels = False
     gl.right_labels = False
     
-    plt.show()
+    #plt.show()
 
     return fig, ax
 
