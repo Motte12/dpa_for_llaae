@@ -53,7 +53,7 @@ def load_test_data(settings_file_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_
     z500_train = z500[:int(128000),:]
     z500_test = z500[int(-64000):,:]
     
-    return z500_test, mask_x_te, ds, ds_test, x_te_reduced
+    return z500_test, z500_train, mask_x_te, ds_train, ds_test, x_te_reduced, x_tr_reduced
 
 def load_eth_test_data(settings_file_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/dpa_train_settings.json"):
     
@@ -201,11 +201,12 @@ def create_ensemble(ensemble_type,
                     decoder_path,
                     lm_path,
                     create_factual_ensemble=False,
-                    create_counterfactual_ensemble=False
+                    create_counterfactual_ensemble=False,
+                    create_train_ensemble=False
                    ):
     # load data
     if ensemble_type == "LE":
-        z500_test, mask, ds, ds_test, x_te_reduced = load_test_data()
+        z500_test, z500_train, mask, ds_train, ds_test, x_te_reduced = load_test_data()
 
     elif ensemble_type == "ETH":
         z500_test, mask, ds_test, x_te_reduced, x_te_reduced_cf = load_eth_test_data() # x_te_reduced is x_te_reduced_eth_fact
@@ -241,6 +242,11 @@ def create_ensemble(ensemble_type,
             gen_te = model_dec(model_pred(z500_test.to(device)))
             torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
 
+    if create_train_ensemble is True:
+        for i in range(1, ensemble_size+1):
+            gen_te = model_dec(model_pred(z500_train.to(device)))
+            torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
+
     if create_counterfactual_ensemble is True:
         # replace GMTs with 0 for counterfactual predictions
         # HERE!
@@ -252,7 +258,7 @@ def create_ensemble(ensemble_type,
 
     
 
-    return mask, ds_test, x_te_reduced
+    return mask, ds_train, ds_test, x_te_reduced
 
     
 

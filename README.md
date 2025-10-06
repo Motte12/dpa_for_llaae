@@ -45,6 +45,7 @@ dpa_results_analysis/ --> structured/automated analysis of results
 1. load model and create ensemble
     + first create new directory to save DPA ensemble
     + with load_model_create_ensemble.ipynb
+    + with create_dpa_ensemble_with_ETH_test_set.py and create_dpa_ensemble_with_validation_set.py
     + /work/fl53wumy-llaae_data_new/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1_noise1/ --> contains model and predicitons with 100 noise dimensions in the latent map
 2. slurm calculations
     + create_results_array.py
@@ -55,7 +56,9 @@ dpa_results_analysis/ --> structured/automated analysis of results
 5. Spatial maps, time series, extremes
    + rank_hist_map.ipynb
 
-**Workflow (starting from 1.) combined in dpa_results_analysis/results_sheet_master.py**
+**Workflow for result analysis combined in dpa_results_analysis/analysis_results_sheet_master.py**
 
 
-
+- created DPA ensemble (100 members) with LE train data (first 128 000 time steps) with "llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/create_dpa_ensemble_with_LE_train_set.py"
+    + calculate energy "loss with llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/analyse_dpa_ensemble_from_LE_train_set.py" (per map)
+    + analyse train error with "llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/LE_train_error.py"

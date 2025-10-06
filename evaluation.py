@@ -3,6 +3,10 @@ import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
 import sys
+import matplotlib.patches as mpatches
+sys.path.append('/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder')
+import utils as ut
+
 
 
 def pearsonr_cols(x, y, dim=0, eps=1e-12):
@@ -141,7 +145,82 @@ def plot_dpa_time_series(true_t, dpa_ens, dpa_ens_mean, lat_min, lat_max, lon_mi
 
     return fig, ax
 
-def plot_violins(truth, dpa_ensemble, save_path):
+def create_rank_hist(test_truth, 
+                     dpa_ens,
+                     lat_min,
+                     lat_max,
+                     lon_min,
+                     lon_max,
+                     figsize,
+                     title,
+                     title_fontsize
+                    ):
+    
+    # temp_true_ger
+    temp_true_ger_pre = test_truth.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
+    
+    # create weights
+    # 1) define weights as above
+    weights_ger = np.cos(np.deg2rad(temp_true_ger_pre['lat']))
+    
+    # 2) wrap in a DataArray so xarray knows which dim it belongs to
+    w_da_ger = xr.DataArray(weights_ger, coords={'lat': temp_true_ger_pre['lat']}, dims=['lat'])
+    
+    temp_true_ger = temp_true_ger_pre.weighted(w_da_ger).mean(dim=('lat', 'lon'))
+
+    # ensemble spatial average (ensemble_member, )
+    dpa_ens_ger_1300 = dpa_ens.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
+
+    
+    
+    # 2) compute ranks
+    """
+    truth : array_like, shape (n_cases,)
+        The observed “true” values.
+    ensemble : array_like, shape (n_cases, n_members)
+        The ensemble forecasts for each case.
+    """
+    truth = temp_true_ger.values
+    ensemble = dpa_ens_ger_1300.values.T
+
+    print("truth shape:", truth.shape)
+    print("ensemble shape:", ensemble.shape)
+    
+    ranks = ut.rank_histogram(truth, ensemble)
+    n_members = ensemble.shape[1]
+    
+    # 3) plot rank histogram
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize)
+    
+    # bins from 0..n_members inclusive
+    ax.hist(ranks, bins=np.arange(n_members+2) - 0.5, edgecolor="black")
+    
+    # set x-ticks to align with bin centers
+    ax.set_xticks(np.arange(n_members + 1))
+    
+    # labels and title
+    ax.set_xlabel("Rank of truth among ensemble members")
+    ax.set_ylabel("Count")
+    ax.set_title(title, fontsize=title_fontsize)
+    
+    plt.tight_layout()
+    #fig.savefig("ETH_analysis_results/ger_rank_histogram.png")
+    plt.show()
+    
+    return fig, ax
+
+def plot_violins(truth, 
+                 dpa_ensemble, 
+                 save_path,
+                 lat_min,
+                 lat_max,
+                 lon_min,
+                 lon_max,
+                 in_fact_for_cf=None,
+                 mode="extremes" ):
+    """
+    mode: whether to choose max/min ("extremes") times or random times ("random")
+    """
 
     #test_100 = ds_test.TREFHT.isel(time=slice(-4769, 64000)) 
     # test_100 is one ensemble member
@@ -158,29 +237,36 @@ def plot_violins(truth, dpa_ensemble, save_path):
     print("dpa ensemble:", dpa_ensmemb100)
     print("dpa ensemble mean:", dpa_mean_ens_member100)
     
+    # calculate spatial mean value
     
-    ################
-    ger_lat_min = 48
-    ger_lat_max = 54
-    ger_lon_min = 6
-    ger_lon_max = 15
     
-    # calculate germany mean value
     ## Truth
+
+    # Test Temperatures that Max Tempersture dates are chosen from
     # test_100
-    temp_true_pre_100 = test_100.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
+    temp_true_pre_100 = test_100.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
     weights_ger = np.cos(np.deg2rad(temp_true_pre_100['lat']))
     w_da_ger = xr.DataArray(weights_ger, coords={'lat': temp_true_pre_100['lat']}, dims=['lat'])
     temp_true_ger = temp_true_pre_100.weighted(w_da_ger).mean(dim=('lat', 'lon'))
+
+
+    # Test factual temperatures for nudged violins
+    if in_fact_for_cf is not None:
+        ### transient temperatures for nudged violins ###
+        temp_ger_eth_trans_pre = in_fact_for_cf.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
+        weights_ger = np.cos(np.deg2rad(temp_ger_eth_trans_pre['lat']))
+        w_da_ger = xr.DataArray(weights_ger, coords={'lat': temp_ger_eth_trans_pre['lat']}, dims=['lat'])
+        temp_ger_eth_trans = temp_ger_eth_trans_pre.weighted(w_da_ger).mean(dim=('lat', 'lon'))
+        ##################################################
     
-    ## DPA ensemble
+    ## DPA ensemble for violins
     # dpa_ensmemb100
-    temp_dpa_ens_100_ger_pre = dpa_ensmemb100.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
+    temp_dpa_ens_100_ger_pre = dpa_ensmemb100.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
     temp_dpa_ens_100_ger = temp_dpa_ens_100_ger_pre.weighted(w_da_ger).mean(dim=('lat', 'lon'))
     
-    ## DPA ensemblese mean
+    ## DPA ensemblese mean (not actually needed I guess?)
     # dpa_mean_ens_member100
-    ger_dpa_mean_ensmemb100_pre = dpa_mean_ens_member100.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
+    ger_dpa_mean_ensmemb100_pre = dpa_mean_ens_member100.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
     weights_ger = np.cos(np.deg2rad(ger_dpa_mean_ensmemb100_pre['lat']))
     w_da_ger = xr.DataArray(weights_ger, coords={'lat': ger_dpa_mean_ensmemb100_pre['lat']}, dims=['lat'])
     ger_dpa_mean_ensmemb100 = ger_dpa_mean_ensmemb100_pre.weighted(w_da_ger).mean(dim=('lat', 'lon'))
@@ -188,16 +274,30 @@ def plot_violins(truth, dpa_ensemble, save_path):
     
     #################
 
+    figure_label = "factual"
+    if in_fact_for_cf is not None: 
+        truth_grouped = temp_ger_eth_trans.groupby("time.year")
+        figure_label = "counterfactual"
     
-    truth_grouped = temp_true_ger.groupby("time.year")
+    else:
+        truth_grouped = temp_true_ger.groupby("time.year")
+        
 
     max_times = []
     min_times = []
     
     # extract indices of max/min temperatures per year from one test member (ensemble member 100)
     for key, group in truth_grouped:
-        print("Year:", key)
+        #print("Year:", key)
         max_date = group.idxmax(dim="time")
+        # choose random timestep
+        if mode == "random":
+            rand_idx = np.random.randint(0, group.sizes["time"])
+            print("rand idx:",rand_idx)
+            print(f"Random index {rand_idx} → time {group.time[rand_idx].values}")
+            max_date = group.time[rand_idx] #group.isel(time=rand_idx)
+            print("max date:", max_date)
+        
         #print("group:", max_date.values)
         min_date = group.idxmin(dim="time")
         #print("group:", min_date.values)
@@ -205,6 +305,9 @@ def plot_violins(truth, dpa_ensemble, save_path):
         min_times.append((str(min_date.values)))
     
     #################
+    
+    list_temp_fact_max = []
+    list_temp_fact_min = []
     
     list_temp_true_max = []
     list_temp_true_min = []
@@ -215,10 +318,18 @@ def plot_violins(truth, dpa_ensemble, save_path):
     list_dpa_mean_max = []
     list_dpa_mean_min = []
     
-    years = np.arange(1850, 2101, 1)
     
-    for i in range(251):
-        #print(i)
+    years = np.arange(1850, 2101, 1)
+    unique_years = np.unique(truth.time.dt.year.values) #unique years
+    print("Number of years:", unique_years)
+    print("Iteration:", (np.arange(unique_years[0],unique_years[-1])-1850))
+    print("Max times:", max_times)
+    for i in (np.arange(unique_years[0],unique_years[-1])-1850):
+
+        # for cf
+        if in_fact_for_cf is not None:
+            list_temp_fact_max.append(temp_ger_eth_trans.sel(time=max_times[i]))
+            list_temp_fact_min.append(temp_ger_eth_trans.sel(time=min_times[i]))
     
         # true (test) temperature
         list_temp_true_max.append(temp_true_ger.sel(time=max_times[i]))
@@ -235,37 +346,62 @@ def plot_violins(truth, dpa_ensemble, save_path):
      
     #################
     
-    no_violins = 21
-    years_dist = np.arange(0,240,20)
+    no_violins = 20 #21
+    years_dist = np.arange(unique_years[0],unique_years[-1],no_violins)-1850 #np.arange(0,240,20)
+    print(years_dist)
     n = 0
+
+    # create large figure
+    fig, axes = plt.subplots(nrows=4, ncols=3, figsize=(40, 25))
+    print(axes)
+    axs = axes.flatten()
+    print(axs)
+    
     for period in years_dist:
-        print(period, period + no_violins)
-        fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(16, 6))
+        #print(period, period + no_violins)
+        #fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(16, 6))
         
         # plot violin plot
-        axs.violinplot(
+        axs[n].violinplot(
             list_dpa_ens_max[period:period + no_violins],         # list of arrays, one array per year 
             showmeans=True,
             showmedians=False,
         )
-        axs.scatter(range(1,no_violins+1), list_temp_true_max[period:period + no_violins], label="True temperatures", marker="x", color = "red")
+        # set number of violins
+        no_violins = len(list_dpa_ens_max[period:period + no_violins])
+        true_color = "red"
+        true_label = "Test factual max Temperature"
+        if in_fact_for_cf is not None:
+            axs[n].scatter(range(1,no_violins+1), list_temp_fact_max[period:period + no_violins], label="Test factual max temperatures", marker="x", color = "red")
+            true_color = "orange"
+            true_label = "Nudged Test Temperature"
+        #axs[n].scatter(range(1,no_violins+1), list_temp_true_max[period:period + no_violins], label=true_label, marker="x", color = true_color)
+        axs[n].scatter(range(1,no_violins+1), list_temp_true_max[period:period + no_violins], label=true_label, marker="x", color = true_color)
     
-        axs.set_title('DPA Maximum Temperature Distribution (Test member 100)')
+        axs[n].set_title('DPA Maximum Temperature Distribution (Test member 1300)')
         
         
-        axs.yaxis.grid(True)
+        axs[n].yaxis.grid(True)
         
-        axs.set_xticks(range(1,252,1)[:no_violins])  
-        axs.set_xticklabels(years[period:period + no_violins])
+        axs[n].set_xticks(range(1,252,1)[:no_violins:5])  
+        axs[n].set_xticklabels(years[period:period + no_violins:5])
         
-        axs.set_xlabel('Year')
-        axs.set_ylabel('T_max')
-        plt.legend()
-        fig.savefig(f"{save_path}/dpa_max_temp_distr{period}-{period + no_violins}.png")
-        plt.show()
+        axs[n].set_xlabel('Year')
+        axs[n].set_ylabel('T_max')
+        # create a proxy handle for the legend
+        vio_patch = mpatches.Patch(color="lightblue", label="DPA Ensemble")
+        axs[n].legend(handles=[vio_patch])
+        axs[n].legend()
+        #fig.savefig(f"{save_path}/dpa_max_temp_distr{period}-{period + no_violins}.png")
+        #plt.show()
         n+=1
 
-    return
+        if n == 12:
+            break
+    
+    fig.savefig(f"{save_path}/{figure_label}_dpa_max_temp_distr.png")
+    plt.show()
+    return fig
 
 
 

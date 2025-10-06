@@ -356,6 +356,7 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, cli
         lists containing [counterfactual, factual] arrays
     '''
     list_tensor_list = []
+    list_tensor_list_raw = []
     list_stacked = []
     list_stacked_reshaped = []
     list_ds = []
@@ -364,6 +365,7 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, cli
         print("Now loading DPA ensemble restored including nans")
         print("Path:", f"{path}{climate}1_te.pt")
         tensor_list_raw = [torch.load(f"{path}{climate}{i}_te.pt", map_location=torch.device('cpu'), weights_only=False) for i in range(1,ens_members+1)] #98 #this is loading raw arrays without nans
+        list_tensor_list_raw.append(tensor_list_raw)
         print("Tensor list raw length:", len(tensor_list_raw))
         print("Tensor list raw elements shape:", tensor_list_raw[0].shape)
         stacked_raw = torch.stack(tensor_list_raw)  # shape: (N, T, H, W)
@@ -424,7 +426,7 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, cli
             ds.to_netcdf(f"{save_path}/ETH_{climate}_dpa_ens_100_dataset_restored.nc", format="NETCDF4")
     
 
-    return list_tensor_list, list_stacked, list_stacked_reshaped, list_ds
+    return list_tensor_list, list_tensor_list_raw, list_stacked, list_stacked_reshaped, list_ds
 
 def load_dpa_predicts(path, mask, save_array=False, raw_hull=(98,64000,648), restored_hull=(98,64000,1024)):
     dpa_t_samples_raw = []
@@ -616,7 +618,7 @@ def plot_temperature_panel(ax, dataarray, vmax_shared, sample_nr=None, no_levels
         )
     return p
 
-def plot_map(field, levels, cmap="bwr", cmap_label = "variable"):
+def plot_map(field, levels, cmap="bwr", cmap_label = ""):
     
     # create plot with a map projection
     fig, ax = plt.subplots(

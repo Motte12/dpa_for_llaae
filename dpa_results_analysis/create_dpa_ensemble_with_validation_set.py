@@ -1,4 +1,4 @@
-###########################
+05###########################
 ### Create DPA ensemble ###
 ###########################
 ## 1) load test data
@@ -87,7 +87,7 @@ def main():
 
     # save data to netCDF dataset
     # could replace with load_both_dpa_arrays
-    tensor_list, stacked, stacked_reshaped, ds = ut.load_dpa_arrays(path=f"{save_path_ensemble_single}/",
+    tensor_list, tensor_list_raw, stacked, stacked_reshaped, ds = ut.load_dpa_arrays(path=f"{save_path_ensemble_single}/",
                                                                     mask=mask,
                                                                     ds_coords=ds_test,
                                                                     ens_members=ens_members,

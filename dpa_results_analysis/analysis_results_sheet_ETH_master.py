@@ -7,6 +7,7 @@ from engression.models import StoNet, StoLayer
 from engression.loss_func import energy_loss, energy_loss_two_sample
 
 import xarray as xr
+import pandas as pd
 import os
 import random
 import matplotlib.pyplot as plt
@@ -16,6 +17,7 @@ from sklearn.manifold import TSNE
 import numpy as np
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+import matplotlib.patches as mpatches
 import shutil
 
 import sys
@@ -33,6 +35,13 @@ def main():
     title_fontsize = 18
     figsize_map = (8,6)
     figsize_ts = (10,6)
+
+    #input_dim = (32, 32)
+
+    time_period = ["1850", "2100"]
+
+    # years for time series plotting
+    years = ["1920", "1940", "1960", "1980", "2000", "2020", "2040", "2060"]#, "2000", "2020", "2040", "2060"]
     
     ens_members=100
     ################
@@ -45,7 +54,7 @@ def main():
     print("Loading test data ...")
     
     # Large Ensemble Data
-    z500_test, mask_x_te, ds, ds_test, x_te_reduced = de.load_test_data()
+    z500_test, z500_train, mask_x_te, ds, ds_test, x_te_reduced, x_tr_reduced = de.load_test_data()
     print("x_te_reduced shape:", x_te_reduced.shape)
 
     # ETH Ensemble Test data
@@ -57,17 +66,43 @@ def main():
     # x_te_reduced_eth_cf   -> land grid cells counterfactual temperature data
 
     # datasets
-    ds_test_1300_eth_fact = ds_test_eth_fact.TREFHT.isel(time=slice(0, 4769))
+    ds_test_1300_eth_fact = ds_test_eth_fact.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1])) # HERE TP
     print("ds_test_1300_eth_fact:", ds_test_1300_eth_fact)
-    ds_test_1300_eth_cf = ds_test_eth_cf.TREFHT.isel(time=slice(0, 4769))
+    ds_test_1300_eth_cf = ds_test_eth_cf.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1])) # HERE TP
+
+    # get indices of time slices
+    time_index = ds_test_eth_fact.TREFHT.isel(time=slice(0, 4769)).get_index("time")
+    print("Time index:", time_index)
+    indices = time_index.get_indexer(ds_test_1300_eth_fact.time.values)
+    start_idx, end_idx = indices[0], indices[-1]+1 # add 1 to include last index
+    #if time_period[-1] == "2100":
+    #    end_idx = indices[-1]
+    
+    #############################
+
+    print("Start index:", start_idx)
+    print("End index:", end_idx)
+
+    #print(ds_test_eth_fact.TREFHT.isel(time=slice(0, 4769)).time[start_idx])
+    #print(ds_test_eth_fact.TREFHT.isel(time=slice(0, 4769)).time[end_idx])
 
     
-    # pytorch arrays
-    eth_fact_1300_test_reduced = x_te_reduced_eth_fact[:4769,:]
-    eth_fact_1400_test_reduced = x_te_reduced_eth_fact[4769:2*4769,:]
-    eth_fact_1500_test_reduced = x_te_reduced_eth_fact[-4769:14307,:]
+
+    
+    # PYTORCH arrays
+    # Factual Test/True temperatures
+    eth_fact_1300_test_reduced = x_te_reduced_eth_fact[:4769,:][start_idx:end_idx,:] # HERE
+    eth_fact_1400_test_reduced = x_te_reduced_eth_fact[4769:2*4769,:][start_idx:end_idx,:]
+    eth_fact_1500_test_reduced = x_te_reduced_eth_fact[-4769:14307,:][start_idx:end_idx,:]
     print("eth_fact_1300_test_reduced shape:", eth_fact_1300_test_reduced.shape)
     mask_x_te = mask_x_te_eth_fact
+
+    # Counterfactual
+    # Factual Test/True temperatures
+    eth_cf_1300_test_reduced = x_te_reduced_eth_cf[:4769,:][start_idx:end_idx,:] # HERE
+    eth_cf_1400_test_reduced = x_te_reduced_eth_cf[4769:2*4769,:][start_idx:end_idx,:]
+    eth_cf_1500_test_reduced = x_te_reduced_eth_cf[-4769:14307,:][start_idx:end_idx,:]
+    print("eth_fact_1300_test_reduced counterfactual shape:", eth_cf_1300_test_reduced.shape)
     
     # load DPA ensemble
     
@@ -81,67 +116,52 @@ def main():
     # FACTUAL 
     # shape: ensemble_member: 100, time: 14307, lat_x_lon: 648
     dpa_ensemble_fact_raw = xr.open_dataset("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/raw_ETH_gen_dpa_ens_100_dataset.nc")
-    dpa_1300_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(0, 4769))
-    dpa_1400_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(4769,2*4769))
-    dpa_1500_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(-4769,14307))
+    dpa_1300_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1400_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(4769,2*4769)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1500_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(-4769,14307)).sel(time=slice(time_period[0], time_period[1]))
     print("dpa_1300_fact_raw:", dpa_1300_fact_raw)
     
 
     # shape: ensemble_member: 100, time: 14307, lat: 32, lon: 32
     dpa_ensemble_fact_restored = xr.open_dataset("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/ETH_gen_dpa_ens_100_dataset_restored.nc")
-    dpa_1300_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(0, 4769))
-    dpa_1400_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(4769,2*4769))
-    dpa_1500_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(-4769,14307))
+    dpa_1300_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1400_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(4769,2*4769)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1500_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(-4769,14307)).sel(time=slice(time_period[0], time_period[1]))
     
 
     # COUNTERFACTUAL
     dpa_ensemble_raw_cf = xr.open_dataset("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/raw_ETH_cf_gen_dpa_ens_100_dataset.nc")
-    dpa_1300_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(0, 4769))
-    dpa_1400_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(4769,2*4769))
-    dpa_1500_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(-4769,14307))
+    dpa_1300_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1400_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(4769,2*4769)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1500_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(-4769,14307)).sel(time=slice(time_period[0], time_period[1]))
 
     dpa_ensemble_restored_cf = xr.open_dataset("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/ETH_cf_gen_dpa_ens_100_dataset_restored.nc")
-    dpa_1300_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(0, 4769))
-    dpa_1400_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(4769,2*4769))
-    dpa_1500_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(-4769,14307))
+    dpa_1300_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1400_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(4769,2*4769)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1500_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(-4769,14307)).sel(time=slice(time_period[0], time_period[1]))
     
     #############
     ### Tests ###
     #############
-    #dpa_ens_mean_fact_1300_restored = dpa_1300_fact_restored.mean(dim="ensemble_member")
-    #dpa_ens_mean_cf_1300_restored = dpa_1300_cf_restored.mean(dim="ensemble_member")
 
-    evaluation.plot_violins(truth = ds_test_1300_eth_fact, 
-                            dpa_ensemble = dpa_1300_fact_restored,
-                            save_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/ETH_analysis_results/factual_extreme_violins")
-
-    evaluation.plot_violins(truth = ds_test_1300_eth_cf, 
-                            dpa_ensemble = dpa_1300_cf_restored,
-                            save_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/ETH_analysis_results/counterfactual_extreme_violins"
-                            )
-
-    sys.exit()
-
-    
     
     
     ####################
     ### Energy Score ###
     ####################
-    
-    # for one grid-cell
 
-    # true grid cell (time-series per grid cell shape: (time steps, 1))
-    # 
+    ### PER GRID CELL ###
+    #####################
     
-    
+    ### Factual ###
+    ###############
 
     # dpa ensemble for one grid cell list[(time steps,1), (time steps,1), ...]
     # this is the reconstructed array containing 1024 grid cells (many with NaNs)
     _, dpa_list, _, _, _ = ut.load_dpa_arrays(path="/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/",
                                   mask = mask_x_te,
                                   ds_coords = ds_test_eth_fact,
-                                  ens_members=100)
+                                  ens_members=ens_members)
     print("DPA tensor list:", len(dpa_list))
     print("DPA tensor list element shape:", dpa_list[0].shape) # list elements contain all timesteps 14307 (3 x 4769)
 
@@ -150,7 +170,7 @@ def main():
     e_loss_array = torch.zeros(3,648)
     for i in range(648):
         # keep only subset of tensors in list
-        dpa_list_subset = [t[:4769, i] for t in dpa_list]
+        dpa_list_subset = [t[start_idx:end_idx, i] for t in dpa_list] #[t[:4769, i] for t in dpa_list]
     
         ### calculate energy score ###
         e_loss = energy_loss(eth_fact_1300_test_reduced[:,i], dpa_list_subset)
@@ -181,31 +201,304 @@ def main():
     s2_loss_xr = ut.torch_to_dataarray(x_tensor = s2_loss_restored, coords_ds = ds_test_eth_fact, lat_dim=32, lon_dim=32, name="s2_loss")
     print("E loss xr:", e_loss_xr)
     
-    energy_levels = np.linspace(0.4, 1.1, 7)
-    levels = np.linspace(0.8, 2.0, 13)
+    #energy_levels = np.linspace(0.4, 1.1, 7)
+    #levels = np.linspace(0.8, 2.0, 13)
+    energy_levels = np.linspace(0.0, 3.0, 11)
+    levels = np.linspace(0.0, 3.0, 11)
     
     # plot energy score
-    fig, ax = ut.plot_map(e_loss_xr, energy_levels, cmap="YlOrRd")
+    fig, ax = ut.plot_map(e_loss_xr, energy_levels, cmap="YlOrRd", cmap_label = "Energy Loss")
     ax.set_title("Energy Loss", fontsize=title_fontsize)
-    fig.savefig("ETH_analysis_results/energy_loss_map.png")
+    fig.savefig("ETH_analysis_results/final_analysis_test_ETH/energy_loss_map.png")
     plt.show()
 
     # plot S1 loss
-    fig, ax = ut.plot_map(s1_loss_xr, levels, cmap="YlOrRd")
+    fig, ax = ut.plot_map(s1_loss_xr, levels, cmap="YlOrRd", cmap_label = "Reconstruction Loss (S1)")
     ax.set_title("S1 Loss", fontsize=title_fontsize)
-    fig.savefig("ETH_analysis_results/S1_loss_map.png")
+    fig.savefig("ETH_analysis_results/final_analysis_test_ETH/S1_loss_map.png")
     plt.show()
 
     # plot s2 loss
-    fig, ax = ut.plot_map(s2_loss_xr, levels, cmap="YlOrRd")
+    fig, ax = ut.plot_map(s2_loss_xr, levels, cmap="YlOrRd", cmap_label = "Variability Loss (S2)")
     ax.set_title("S2 Loss", fontsize=title_fontsize)
-    fig.savefig("ETH_analysis_results/S2_loss_map.png")
+    fig.savefig("ETH_analysis_results/final_analysis_test_ETH/S2_loss_map.png")
     plt.show()
-    
-    
 
     
+    ### Counterfactual ###
+    ######################
     
+    # climate_list: ["cf_gen", "gen"]
+    _, dpa_list_cf_pre, _, _, _ = ut.load_both_dpa_arrays(path="/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/",
+                                  mask = mask_x_te,
+                                  ds_coords = ds_test_eth_fact,
+                                  ens_members=ens_members,
+                                  climate_list = ["cf_gen"]
+                                )
+
+    print("DPA tensor list:", len(dpa_list_cf_pre))
+    print("DPA tensor list element shape:", dpa_list_cf_pre[0][0].shape) # list elements contain all timesteps 14307 (3 x 4769)
+
+    dpa_list_cf = dpa_list_cf_pre[0]
+    
+    e_loss_array = torch.zeros(3,648)
+    for i in range(648):
+        # keep only subset of tensors in list
+        dpa_list_subset = [t[start_idx:end_idx, i] for t in dpa_list_cf]
+    
+        ### calculate energy score ###
+        e_loss = energy_loss(eth_cf_1300_test_reduced[:,i], dpa_list_subset)
+        print(e_loss)
+        e_loss_array[0,i] = e_loss[0].detach() 
+        e_loss_array[1,i] = e_loss[1].detach()
+        e_loss_array[2,i] = e_loss[2].detach()
+        print(i)
+        print("Energy Loss:", e_loss)
+
+    print("E Loss shape:", e_loss_array.shape)
+    
+    print("type mask:", type(mask_x_te))
+    print("mask shape:", mask_x_te.shape)
+    print("type e loss array:", type(e_loss_array))
+
+    # Check if there is any NaN at all
+    has_nan = torch.isnan(e_loss_array).any()
+    print("E_Loss has any nans:", has_nan)
+        
+    # restore NaN columns
+    e_loss_restored = ut.restore_nan_columns(e_loss_array[0,:].unsqueeze(0), mask_x_te)
+    s1_loss_restored = ut.restore_nan_columns(e_loss_array[1,:].unsqueeze(0), mask_x_te)
+    s2_loss_restored = ut.restore_nan_columns(e_loss_array[2,:].unsqueeze(0), mask_x_te)
+
+    print("e_loss_restored shape:", e_loss_restored.shape)
+
+    
+    # transform e_loss_array into xarray
+    e_loss_xr = ut.torch_to_dataarray(x_tensor = e_loss_restored, coords_ds = ds_test_eth_fact, lat_dim=32, lon_dim=32, name="energy_loss_total") # add oth dimensin 
+    s1_loss_xr = ut.torch_to_dataarray(x_tensor = s1_loss_restored, coords_ds = ds_test_eth_fact, lat_dim=32, lon_dim=32, name="s1_loss")
+    s2_loss_xr = ut.torch_to_dataarray(x_tensor = s2_loss_restored, coords_ds = ds_test_eth_fact, lat_dim=32, lon_dim=32, name="s2_loss")
+    print("E loss xr:", e_loss_xr)
+    
+    
+    
+    # plot energy score
+    fig, ax = ut.plot_map(e_loss_xr, energy_levels, cmap="YlOrRd", cmap_label = "Energy Loss")
+    ax.set_title("Counterfactual Energy Loss", fontsize=title_fontsize)
+    fig.savefig("ETH_analysis_results/final_analysis_test_ETH/cf_energy_loss_map.png")
+    plt.show()
+
+    # plot S1 loss
+    fig, ax = ut.plot_map(s1_loss_xr, levels, cmap="YlOrRd", cmap_label = "Reconstruction Loss (S1)")
+    ax.set_title("Counterfactual S1 Loss", fontsize=title_fontsize)
+    fig.savefig("ETH_analysis_results/final_analysis_test_ETH/cf_S1_loss_map.png")
+    plt.show()
+
+    # plot s2 loss
+    fig, ax = ut.plot_map(s2_loss_xr, levels, cmap="YlOrRd", cmap_label = "Variability Loss (S2)")
+    ax.set_title("Counterfactual S2 Loss", fontsize=title_fontsize)
+    fig.savefig("ETH_analysis_results/final_analysis_test_ETH/cf_S2_loss_map.png")
+    plt.show()
+    
+    sys.exit()
+
+    ### PER TIME STEP ###
+    #####################
+
+    ### Factual ###
+    ###############
+
+    # now transpose (switch i and :) everything to calculate scores over time i.e. for each map
+    
+    if False:
+        
+        e_loss_array = torch.zeros(dpa_list[0].shape[0], 3)
+        for i in range(dpa_list[0].shape[0]):
+            # keep only subset of tensors in list
+            dpa_list_subset = [t[i, :] for t in dpa_list] 
+        
+            ### calculate energy score ###
+            e_loss = energy_loss(x_tr_reduced[i,:], dpa_list_subset)
+            e_loss_array[i,0] = e_loss[0].detach() 
+            e_loss_array[i,1] = e_loss[1].detach()
+            e_loss_array[i,2] = e_loss[2].detach()
+            print(i)
+            print("Energy Loss:", e_loss)
+
+        # Save
+        #torch.save(e_loss_array, "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/new_e_loss_over_time.pt")
+
+    e_loss_pre = torch.load("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/e_loss_over_time.pt")
+    #print("e loss shape:", e_loss_pre.shape)
+
+    # create xarray from e_loss
+    loss_types = ["energy_loss", "S1", "S2"]
+
+    # Create time coordinate (example: daily timestamps)
+    time_coord = ds_test_eth_fact.time
+    
+    # Convert torch → numpy and wrap into xarray
+    eloss_xr = xr.DataArray(
+        e_loss_pre.detach().numpy(),                     # convert to NumPy
+        dims=("time", "loss"),                 # name the dimensions
+        coords={
+            "time": time_coord,
+            "loss": loss_types
+        },
+        name="loss_values"
+    )
+    
+    #print(eloss_xr)
+
+    # calculate mean across members in train set
+    eloss_xr_time_series = eloss_xr.groupby("time").mean(dim="time")
+
+    # standardize loss values
+    # Standardize along the 'time' dimension
+    eloss_standardized = (eloss_xr_time_series - eloss_xr_time_series.mean(dim="time")) / eloss_xr_time_series.std(dim="time")
+    print(eloss_standardized)
+
+    # compute yearly mean values for energy loss
+    yearly_eloss_standardized = (eloss_standardized.groupby("time.year").mean(dim="time"))
+
+    
+    # Create figure and axis
+    fig, ax = plt.subplots(figsize=(10, 5))
+    
+    # Plot standardized... 
+    # energy loss (yearly)
+    yearly_eloss_standardized.sel(loss="energy_loss").plot(
+        ax=ax,
+        label="Energy Loss (Standardized)",
+        color="tab:blue",
+        linewidth=1
+    )
+
+    # S1
+    yearly_eloss_standardized.sel(loss="S1").plot(
+        ax=ax,
+        label="S1",
+        color="tab:orange",
+        linewidth=1
+    )
+
+    # S2
+    yearly_eloss_standardized.sel(loss="S2").plot(
+        ax=ax,
+        label="S2",
+        color="tab:green",
+        linewidth=1
+    )
+    
+    # Add legend and labels
+    ax.legend(fontsize=10)
+    ax.set_title("Standardized Losses", fontsize=14)
+    ax.set_xlabel("Year", fontsize=12)
+    ax.set_ylabel("Standardized Value", fontsize=12)
+    ax.grid(True, linestyle="--", alpha=0.5)
+    
+    # Save figure
+    plt.tight_layout()
+    fig.savefig("ETH_analysis_results/energy_loss_time_series_eth_test_set.png", dpi=300)
+    plt.show()
+    sys.exit()
+
+    ### Counterfactual ###
+    ######################
+
+    # now transpose (switch i and :) everything to calculate scores over time i.e. for each map
+    
+    if False:
+        
+        e_loss_array = torch.zeros(dpa_list_cf[0].shape[0], 3)
+        for i in range(dpa_list_cf[0].shape[0]):
+            # keep only subset of tensors in list
+            dpa_list_subset = [t[i, :] for t in dpa_list_cf] 
+        
+            ### calculate energy score ###
+            e_loss = energy_loss(x_te_reduced_eth_cf[i,:], dpa_list_subset)
+            e_loss_array[i,0] = e_loss[0].detach() 
+            e_loss_array[i,1] = e_loss[1].detach()
+            e_loss_array[i,2] = e_loss[2].detach()
+            print(i)
+            print("Energy Loss:", e_loss)
+
+        # Save
+        #torch.save(e_loss_array, "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/new_e_loss_over_time.pt")
+
+    e_loss_pre = torch.load("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/e_loss_over_time.pt")
+    #print("e loss shape:", e_loss_pre.shape)
+
+    # create xarray from e_loss
+    loss_types = ["energy_loss", "S1", "S2"]
+
+    # Create time coordinate (example: daily timestamps)
+    time_coord = ds_test_eth_fact.time
+    
+    # Convert torch → numpy and wrap into xarray
+    eloss_xr = xr.DataArray(
+        e_loss_pre.detach().numpy(),                     # convert to NumPy
+        dims=("time", "loss"),                 # name the dimensions
+        coords={
+            "time": time_coord,
+            "loss": loss_types
+        },
+        name="loss_values"
+    )
+    
+    #print(eloss_xr)
+
+    # calculate mean across members in train set
+    eloss_xr_time_series = eloss_xr.groupby("time").mean(dim="time")
+
+    # standardize loss values
+    # Standardize along the 'time' dimension
+    eloss_standardized = (eloss_xr_time_series - eloss_xr_time_series.mean(dim="time")) / eloss_xr_time_series.std(dim="time")
+    print(eloss_standardized)
+
+    # compute yearly mean values for energy loss
+    yearly_eloss_standardized = (eloss_standardized.groupby("time.year").mean(dim="time"))
+
+    
+    # Create figure and axis
+    fig, ax = plt.subplots(figsize=(10, 5))
+    
+    # Plot standardized... 
+    # energy loss (yearly)
+    yearly_eloss_standardized.sel(loss="energy_loss").plot(
+        ax=ax,
+        label="Energy Loss (Standardized)",
+        color="tab:blue",
+        linewidth=1
+    )
+
+    # S1
+    yearly_eloss_standardized.sel(loss="S1").plot(
+        ax=ax,
+        label="S1",
+        color="tab:orange",
+        linewidth=1
+    )
+
+    # S2
+    yearly_eloss_standardized.sel(loss="S2").plot(
+        ax=ax,
+        label="S2",
+        color="tab:green",
+        linewidth=1
+    )
+    
+    # Add legend and labels
+    ax.legend(fontsize=10)
+    ax.set_title("Standardized Losses", fontsize=14)
+    ax.set_xlabel("Year", fontsize=12)
+    ax.set_ylabel("Standardized Value", fontsize=12)
+    ax.grid(True, linestyle="--", alpha=0.5)
+    
+    # Save figure
+    plt.tight_layout()
+    fig.savefig("ETH_analysis_results/energy_loss_time_series_eth_test_set_cf.png", dpi=300)
+    plt.show()
+    sys.exit()
     
     ###########################
     ### PEARSON CORRELATION ###
@@ -289,9 +582,11 @@ def main():
 
     plt.savefig("ETH_analysis_results/R2_test_figure.png")
 
-    #######################
-    ### Rank histograms ###
-    #######################
+    
+
+    #############################
+    ### Reliability Index Map ###
+    #############################
 
     # turn array into .pt array
     dpa_1300_fact_raw_pt = torch.from_numpy(dpa_1300_fact_raw.values)
@@ -362,7 +657,7 @@ def main():
     ### Regional mean temperatures ###
     ##################################
 
-    years = ["1960", "1980", "2000", "2020", "2040", "2060"]
+    
     
     ### Germany ###
     
@@ -450,8 +745,7 @@ def main():
         plt.show()
     
     
-    # end script
-    sys.exit()
+    
                           
 
     ### True (Test) temperature ###
@@ -528,9 +822,155 @@ def main():
     ### Violin plots ###
     ####################
 
-    ##############################
-    ### Germany Rank Histogram ###
-    ##############################
+    ### max temperatures ###
+    fig = evaluation.plot_violins(truth = ds_test_1300_eth_fact, 
+                            dpa_ensemble = dpa_1300_fact_restored,
+                            save_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/ETH_analysis_results/factual_extreme_violins",
+                            lat_min = ger_lat_min,
+                            lat_max = ger_lat_max,
+                            lon_min = ger_lon_min,
+                            lon_max = ger_lon_max
+                            )
+
+
+
+    fig = evaluation.plot_violins(truth = ds_test_1300_eth_cf, 
+                            dpa_ensemble = dpa_1300_cf_restored,
+                            save_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/ETH_analysis_results/counterfactual_extreme_violins",
+                            lat_min = ger_lat_min,
+                            lat_max = ger_lat_max,
+                            lon_min = ger_lon_min,
+                            lon_max = ger_lon_max,
+                            in_fact_for_cf = ds_test_1300_eth_fact
+                            )
+
+
+    ### random temperatures ###
+    fig = evaluation.plot_violins(truth = ds_test_1300_eth_fact, 
+                            dpa_ensemble = dpa_1300_fact_restored,
+                            save_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/ETH_analysis_results/factual_random_violins",
+                            lat_min = ger_lat_min,
+                            lat_max = ger_lat_max,
+                            lon_min = ger_lon_min,
+                            lon_max = ger_lon_max,
+                            mode="random"
+                            )
+
+
+
+    fig = evaluation.plot_violins(truth = ds_test_1300_eth_cf, 
+                            dpa_ensemble = dpa_1300_cf_restored,
+                            save_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/ETH_analysis_results/counterfactual_random_violins",
+                            lat_min = ger_lat_min,
+                            lat_max = ger_lat_max,
+                            lon_min = ger_lon_min,
+                            lon_max = ger_lon_max,
+                            in_fact_for_cf = ds_test_1300_eth_fact,
+                            mode="random"
+                            )
+
+    ######################
+    ### Rank Histogram ###
+    ######################
+
+    # Factual Rank Hists
+    
+    ### Germany ###
+    
+    fig, ax = evaluation.create_rank_hist(ds_test_1300_eth_fact, 
+                                             dpa_1300_fact_restored,
+                                             ger_lat_min,
+                                             ger_lat_max,
+                                             ger_lon_min,
+                                             ger_lon_max,
+                                             figsize_map,
+                                             "Rank histogram Germany",
+                                             title_fontsize
+                                             )
+    
+    fig.savefig("ETH_analysis_results/Ger_rank_hist.png")
+
+    ### Spain ###
+    
+    fig, ax = evaluation.create_rank_hist(ds_test_1300_eth_fact, 
+                                             dpa_1300_fact_restored,
+                                             sp_lat_min,
+                                             sp_lat_max,
+                                             sp_lon_min,
+                                             sp_lon_max,
+                                             figsize_map,
+                                             "Rank histogram Spain",
+                                             title_fontsize
+                                             )
+    
+    fig.savefig("ETH_analysis_results/Sp_rank_hist.png")
+
+    # Counterfactual Rank Hists
+
+    ### Germany ###
+    
+    fig, ax = evaluation.create_rank_hist(ds_test_1300_eth_cf, 
+                                             dpa_1300_cf_restored,
+                                             ger_lat_min,
+                                             ger_lat_max,
+                                             ger_lon_min,
+                                             ger_lon_max,
+                                             figsize_map,
+                                             "Rank histogram Germany",
+                                             title_fontsize
+                                             )
+    
+    fig.savefig("ETH_analysis_results/Ger_cf_rank_hist.png")
+
+    ### Spain ###
+    
+    fig, ax = evaluation.create_rank_hist(ds_test_1300_eth_cf, 
+                                             dpa_1300_cf_restored,
+                                             sp_lat_min,
+                                             sp_lat_max,
+                                             sp_lon_min,
+                                             sp_lon_max,
+                                             figsize_map,
+                                             "Rank histogram Spain",
+                                             title_fontsize
+                                             )
+    
+    fig.savefig("ETH_analysis_results/Sp_cf_rank_hist.png")
+
+    
+
+    # temp_true_ger
+    #temp_true_ger_pre = ds_test_1300_eth_fact.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
+    #cf_temp_true_ger_pre = ds_test_1300_eth_cf.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
+
+    
+    # create weights
+    # 1) define weights as above
+    #weights_ger = np.cos(np.deg2rad(temp_true_ger_pre['lat']))
+    
+    # 2) wrap in a DataArray so xarray knows which dim it belongs to
+    #w_da_ger = xr.DataArray(weights_ger, coords={'lat': temp_true_ger_pre['lat']}, dims=['lat'])
+    
+    #temp_true_ger = temp_true_ger_pre.weighted(w_da_ger).mean(dim=('lat', 'lon'))
+    #cf_temp_true_ger = cf_temp_true_ger_pre.weighted(w_da_ger).mean(dim=('lat', 'lon'))
+    #print("cf_temp_true_ger:", cf_temp_true_ger)
+
+    
+
+    ### DPA Ensemble ###
+    # standard deviation, germany mean
+    #dpa_ens_std = dpa_1300_fact_restored.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max)).std(dim="ensemble_member") # before: dpa_ensemble_restored.TREFHT
+    #dpa_ens_std_ger = dpa_ens_std.weighted(w_da_ger).mean(dim=('lat', 'lon'))
+
+    # ensemble mean, germany mean 
+    #dpa_ens_mean_ger = dpa_ens_mean_fact_1300_restored.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon')) # before: dpa_ensemble_restored
+    #print(dpa_ens_mean_ger.shape)
+    #dpa_ens_mean_ger_cf = dpa_ens_mean_cf_1300_restored.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
+
+    # ensemble germany average (ensemble_member, )
+    #dpa_ens_ger_1300 = dpa_1300_fact_restored.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
+    #print("dpa_ens_ger_1300:", dpa_ens_ger_1300.values.T.shape)
+    
     
     # 2) compute ranks
     """
@@ -539,34 +979,35 @@ def main():
     ensemble : array_like, shape (n_cases, n_members)
         The ensemble forecasts for each case.
     """
-    truth = temp_true_ger.values
-    ensemble = dpa_ens_ger_1300.values.T
+    #truth = temp_true_ger.values
+    #ensemble = dpa_ens_ger_1300.values.T
 
-    print("truth shape:", truth.shape)
-    print("ensemble shape:", ensemble.shape)
+    #print("truth shape:", truth.shape)
+    #print("ensemble shape:", ensemble.shape)
     
-    ranks = ut.rank_histogram(truth, ensemble)
-    n_members = ensemble.shape[1]
+    #ranks = ut.rank_histogram(truth, ensemble)
+    #n_members = ensemble.shape[1]
     
     # 3) plot rank histogram
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize_map)
+    #fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize_map)
     
     # bins from 0..n_members inclusive
-    ax.hist(ranks, bins=np.arange(n_members+2) - 0.5, edgecolor="black")
+    #ax.hist(ranks, bins=np.arange(n_members+2) - 0.5, edgecolor="black")
     
     # set x-ticks to align with bin centers
-    ax.set_xticks(np.arange(n_members + 1))
+    #ax.set_xticks(np.arange(n_members + 1))
     
     # labels and title
-    ax.set_xlabel("Rank of truth among ensemble members")
-    ax.set_ylabel("Count")
-    ax.set_title("Germany Average", fontsize=title_fontsize)
+    #ax.set_xlabel("Rank of truth among ensemble members")
+    #ax.set_ylabel("Count")
+    #ax.set_title("Germany Average", fontsize=title_fontsize)
     
-    plt.tight_layout()
-    fig.savefig("ETH_analysis_results/ger_rank_histogram.png")
-    plt.show()
+    #plt.tight_layout()
+    #fig.savefig("ETH_analysis_results/ger_rank_histogram.png")
+    #plt.show()
 
-    
+    # end script
+    #sys.exit()
 
 
     ############

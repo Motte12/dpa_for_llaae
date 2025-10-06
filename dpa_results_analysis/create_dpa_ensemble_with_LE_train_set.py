@@ -33,9 +33,8 @@ import utils as ut
 import evaluation
 
 def main():
-    print("Script started ...")
     ens_members = 100
-    save_path_ensemble_single = "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs"
+    save_path_ensemble_single = "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/train_set_ensemble_after_30_epochs"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("device:", device)
     
@@ -64,7 +63,7 @@ def main():
     #epochs=300
 
     # create_ensemble() saves ensemble and return mask
-    mask, ds_test, x_te_reduced = de.create_ensemble(ensemble_type="ETH",
+    mask, ds_train, ds_test, x_te_reduced = de.create_ensemble(ensemble_type="LE",
                                     ensemble_size=ens_members,
                                     save_path=save_path_ensemble_single,
                                     device=device,
@@ -84,19 +83,16 @@ def main():
                                     encoder_path="/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/_50_6_50_5_1001_20_2_50_encoderislearnable_lambda0.5_bs128/model_enc_30.pt",
                                     decoder_path="/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/_50_6_50_5_1001_20_2_50_encoderislearnable_lambda0.5_bs128/model_dec_30.pt",
                                     lm_path="/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/_50_6_50_5_1001_20_2_50_encoderislearnable_lambda0.5_bs128/model_pred_30.pt",
-                                    create_factual_ensemble=True,
-                                    create_counterfactual_ensemble=True
+                                    create_train_ensemble=True
                                     )
 
     # save data to netCDF dataset
     # could replace with load_both_dpa_arrays
-    tensor_list, tensor_list_raw, stacked, stacked_reshaped, ds = ut.load_both_dpa_arrays(path=f"{save_path_ensemble_single}/",
+    tensor_list, tensor_list_raw, stacked, stacked_reshaped, ds = ut.load_dpa_arrays(path=f"{save_path_ensemble_single}/",
                                                                     mask=mask,
-                                                                    ds_coords=ds_test,
+                                                                    ds_coords=ds_train,
                                                                     ens_members=ens_members,
-                                                                    save_path=f"{save_path_ensemble_single}",
-                                                                    climate_list=["gen", "cf_gen"]
-                                                                    )
+                                                                    save_path=f"{save_path_ensemble_single}")
 
 if __name__ == "__main__":
     main()
