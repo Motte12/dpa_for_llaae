@@ -324,7 +324,11 @@ def plot_violins(truth,
     print("Number of years:", unique_years)
     print("Iteration:", (np.arange(unique_years[0],unique_years[-1])-1850))
     print("Max times:", max_times)
-    for i in (np.arange(unique_years[0],unique_years[-1])-1850):
+    print("temp_true_ger", temp_true_ger.time)
+    #for i in (np.arange(unique_years[0],unique_years[-1])-1850):
+    for i in (range(unique_years.shape[0])):
+        print(i)
+        print(max_times[i])
 
         # for cf
         if in_fact_for_cf is not None:
@@ -347,26 +351,39 @@ def plot_violins(truth,
     #################
     
     no_violins = 20 #21
-    years_dist = np.arange(unique_years[0],unique_years[-1],no_violins)-1850 #np.arange(0,240,20)
+
+    # use this if its not working any more
+    #years_dist = np.arange(unique_years[0],unique_years[-1],no_violins)-1850 #np.arange(0,240,20)
+    years_dist = np.arange(0, unique_years[-1]-unique_years[0]+1, no_violins)
+    
     print(years_dist)
-    n = 0
 
     # create large figure
     fig, axes = plt.subplots(nrows=4, ncols=3, figsize=(40, 25))
     print(axes)
     axs = axes.flatten()
     print(axs)
-    
+    print("list_dpa_ens_max", len(list_dpa_ens_max))
+    #print("list_dpa_ens_max", list_dpa_ens_max)
+    n = 0
     for period in years_dist:
-        #print(period, period + no_violins)
+        print("period, period + no_violins:", int(n*no_violins), int(n*no_violins) + no_violins)
         #fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(16, 6))
-        
+        print("n:",n)
         # plot violin plot
-        axs[n].violinplot(
-            list_dpa_ens_max[period:period + no_violins],         # list of arrays, one array per year 
-            showmeans=True,
-            showmedians=False,
-        )
+        if True:
+            axs[n].violinplot(
+                list_dpa_ens_max[period:period + no_violins],         # list of arrays, one array per year 
+                showmeans=True,
+                showmedians=False,
+            )
+
+        if False:
+            axs[n].violinplot(
+                list_dpa_ens_max[int(n*no_violins):int(n*no_violins) + no_violins],         # list of arrays, one array per year 
+                showmeans=True,
+                showmedians=False,
+            )
         # set number of violins
         no_violins = len(list_dpa_ens_max[period:period + no_violins])
         true_color = "red"
@@ -399,11 +416,44 @@ def plot_violins(truth,
         if n == 12:
             break
     
-    fig.savefig(f"{save_path}/{figure_label}_dpa_max_temp_distr.png")
+    fig.savefig(f"{save_path}/{figure_label}_{mode}_dpa_max_temp_distr.png")
     plt.show()
     return fig
 
+def compute_autocorrelation(x, mask, ds_coords):
+    """
+    x: 2d input torch array of shape (timesteps, features)
 
+    returns: autocorr, autocorr_xr
+    """
+    if x.ndim == 2:
+        data_centered = x - x.mean(dim=0, keepdim=True) # center data by subtracting mean along time
+        
+        # compute Lag = 1 autocorrelation
+        numerator = (data_centered[:-1, :] * data_centered[1:, :]).sum(dim=0)
+        denominator = (data_centered ** 2).sum(dim=0)
+        autocorr = numerator / denominator
+    
+        # turn into xarray
+        autocorr_restored = ut.restore_nan_columns(autocorr, mask)
+        autocorr_xr = ut.torch_to_dataarray(autocorr_restored, ds_coords)
+
+    elif x.ndim > 2:
+        # center
+        test_data_centered_mult = x - x.mean(dim=1, keepdim=True) # dim1=time
+    
+        # Lag = 1 autocorrelation
+        # test_data_centered_mult shape = (ensemble members: 100, time: 969, features: 648)
+        numerator_mult = (test_data_centered_mult[:, :-1, :] * test_data_centered_mult[:, 1:, :]).sum(dim=1)
+        denominator_mult = (test_data_centered_mult ** 2).sum(dim=1)
+        autocorr = numerator_mult / denominator_mult
+
+        # add empty xarray
+        autocorr_xr = ['no xarray']
+        
+    
+    return autocorr, autocorr_xr
+    
 
 
 

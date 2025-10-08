@@ -15,33 +15,67 @@ import argparse
 import json
 from sklearn.manifold import TSNE
 import numpy as np
+import scipy.stats as stats
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import matplotlib.patches as mpatches
 import shutil
+from datetime import datetime
 
 import sys
+import os
 sys.path.append('/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder')
 import dpa_ensemble as de
 import utils as ut
 import evaluation
+import analyse_dpa_ensemble_from_LE_train_set
+import create_summary_page
+
+def log_print(log_path, message):
+    print(message)  # print to console
+    with open(log_path, "a") as f:
+        print(message, file=f)  # also write to file    
 
 
+def main(): 
+    time_period = ["2000", "2050"]
+
+    # save path
+    save_path_eth = f"ETH_analysis_results/final_analysis_test_ETH/period_{time_period[0]}_{time_period[1]}"
+    print("save path:", save_path_eth)
+    #save_path_LE = ""
+    os.makedirs(save_path_eth, exist_ok=True)
+    log_file = f"{save_path_eth}/log_metrics_{time_period[0]}-{time_period[1]}.txt"
+    # Get current time and print it
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_print(log_file, f"=== Current Time: {current_time} ===")
+
+    # create germany and spain subdirs
+    os.makedirs(f"{save_path_eth}/Germany", exist_ok=True)
+    os.makedirs(f"{save_path_eth}/Spain", exist_ok=True)
+    print(f"{save_path_eth}/Germany")
+    print(f"{save_path_eth}/Spain")
     
-
-
-def main():
+    
     # plotting settings
     title_fontsize = 18
-    figsize_map = (8,6)
-    figsize_ts = (10,6)
+    figsize_map = (10,8)
+    figsize_ts = (10,8)
+    figsize_hist = (8,6)
 
     #input_dim = (32, 32)
 
-    time_period = ["1850", "2100"]
 
     # years for time series plotting
     years = ["1920", "1940", "1960", "1980", "2000", "2020", "2040", "2060"]#, "2000", "2020", "2040", "2060"]
+    # subset to years that are contained in time period!!
+    # Convert to integers
+    start, end = map(int, time_period)
+    
+    # Filter years that fall within the range
+    years = [y for y in map(int, years) if start <= y <= end]
+    
+    print("years contained", years)
     
     ens_members=100
     ################
@@ -54,7 +88,7 @@ def main():
     print("Loading test data ...")
     
     # Large Ensemble Data
-    z500_test, z500_train, mask_x_te, ds, ds_test, x_te_reduced, x_tr_reduced = de.load_test_data()
+    z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced = de.load_test_data()
     print("x_te_reduced shape:", x_te_reduced.shape)
 
     # ETH Ensemble Test data
@@ -64,6 +98,7 @@ def main():
     # ds_test_eth_fact      -> factual test temperatures (xarray dataset) lat: 32, lon: 32, time: 14307
     # x_te_reduced_eth_fact -> land grid cells factual temperature data
     # x_te_reduced_eth_cf   -> land grid cells counterfactual temperature data
+    print("x_te_reduced_eth_fact:", x_te_reduced_eth_fact.shape)
 
     # datasets
     ds_test_1300_eth_fact = ds_test_eth_fact.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1])) # HERE TP
@@ -144,8 +179,189 @@ def main():
     ### Tests ###
     #############
 
+    #################
+    ### Quantiles ### add for random locations?? add counterfactual??
+    #################
+
+    quantiles = torch.linspace(0,1,101)
+    print("quantiles:", quantiles)
+    
+    ### TRUTH ###########################################################################################################
+    # compute quantiles along 0th (time) dimension
+    quantiles_fact_true = torch.quantile(eth_fact_1300_test_reduced, q=quantiles, dim=0)
+    print("quantiles shape:", quantiles_fact_true.shape)
+
+    # compute spatial mean 
+    quantiles_fact_true_spat_mean = quantiles_fact_true.mean(dim=1)
+
+    # plot a quantile
+    quantiles_fact_restored = ut.restore_nan_columns(quantiles_fact_true[2,:], mask_x_te)
+    quantiles_fact_restored_xr = ut.torch_to_dataarray(quantiles_fact_restored, ds_test_eth_fact)
+    fig, ax = ut.plot_map(quantiles_fact_restored_xr, np.linspace(2,6,21), cmap="YlOrRd", cmap_label = "Autocorrelation")
+    fig.savefig(f"{save_path_eth}/075_quantile_truth.png")
+    ######################################################################################################################
+
+    
+    ### DPA ENSEMBLE #####################################################################################################
+    dpa_1300_fact_raw_pt = torch.from_numpy(dpa_1300_fact_raw.values) # turn into pytorch array
+    quantiles_fact_dpa = torch.quantile(dpa_1300_fact_raw_pt, q=quantiles, dim=1)
+    print("DPA quantiles shape:", quantiles_fact_dpa.shape)
+
+    # mean over ens members and locations
+    quantiles_fact_dpa_mean_spat_mean = quantiles_fact_dpa.mean(dim=(1,2))
+
+    # DIFFERENCE DPA quantiles and true quantiles
+    quantile_diffs_ens = torch.abs(quantiles_fact_dpa - quantiles_fact_true.unsqueeze(1))
+
+    # mean over ensemble members and locations (grid-cells)
+    quantile_diffs_ens_mean = quantile_diffs_ens.mean(dim=(1,2)) # absolute errors averaged across ensemble members and locations
+    print("quantile diffs shape", quantile_diffs_ens.shape)
+    log_print(log_file, f"Factual quantile differences: {quantile_diffs_ens_mean}")
+    ######################################################################################################################
+
+
+    
+
+    # Q-Q plot ###########################################################################################################
+    # Sort both datasets
+    q1 = quantiles_fact_dpa_mean_spat_mean.detach().numpy()
+    q2 = quantiles_fact_true_spat_mean.detach().numpy()
     
     
+    # Plot quantile–quantile relationship
+    fig, ax = plt.subplots(figsize=(8,8))
+
+    ax.scatter(q1, q2, alpha=0.7, linewidths=0.2)
+    ax.plot([q1.min(), q1.max()], [q1.min(), q1.max()], 'r--', label='1:1 line')
+    ax.set_ylabel("Truth quantiles")
+    ax.set_xlabel("Model quantiles")
+    ax.set_title("Q–Q Plot: Truth vs Model")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+    fig.savefig(f"{save_path_eth}/Q-Q_plot.png")
+    ######################################################################################################################
+
+
+    
+
+    
+    
+
+    
+    sys.exit()
+    
+    # ensemble mean
+    quantiles_fact_dpa_ens_mean = quantiles_fact_dpa.mean(dim=1)
+    # plot a quantile
+    quantiles_fact_dpa_restored = ut.restore_nan_columns(quantiles_fact_dpa_ens_mean[2,:], mask_x_te)
+    quantiles_fact_dpa_restored_xr = ut.torch_to_dataarray(quantiles_fact_dpa_restored, ds_test_eth_fact)
+    fig, ax = ut.plot_map(quantiles_fact_dpa_restored_xr, np.linspace(2,6,21), cmap="YlOrRd", cmap_label = "Autocorrelation")
+    fig.savefig(f"{save_path_eth}/075_quantile_dpa_ens_mean.png")
+
+    
+    
+    
+    # scatterplot to compare quantiles
+    fig, ax = plt.subplots(figsize=(10,8))
+    ax.scatter(range(648), quantiles_fact_true[2, :], marker='x', label="True quantiles", alpha=0.7)
+    ax.scatter(range(648), quantiles_fact_dpa_ens_mean[2, :], marker='x', label="DPA ensemble mean", alpha=0.7)
+    
+    ax.set_xlabel("Feature index")
+    ax.set_ylabel("Quantile value (0.75)")
+    ax.set_title("Comparison of 0.75 Quantiles: Truth vs DPA Ensemble Mean")
+    ax.legend()
+    
+    fig.tight_layout()
+    fig.savefig(f"{save_path_eth}/075_quantile_scatter_comparison.png", dpi=300)
+    plt.close(fig)
+
+    # scatterplot to compare quantiles
+    fig, ax = plt.subplots(figsize=(10,8))
+    ax.scatter(range(648), quantiles_fact_dpa_ens_mean[2, :] - quantiles_fact_true[2, :], marker='x', label="Quantile differences (DPA-true)", alpha=0.7)
+    
+    ax.set_xlabel("Feature index")
+    ax.set_ylabel("Quantile value (0.75)")
+    ax.set_title("Difference of 0.75 Quantiles: Truth vs DPA Ensemble Mean")
+    ax.legend()
+    
+    fig.tight_layout()
+    fig.savefig(f"{save_path_eth}/075_quantile_scatter_difference.png", dpi=300)
+    plt.close(fig)
+
+
+    
+    
+    
+    sys.exit()
+
+    ########################
+    ### Autocorrelations ###
+    ########################
+    # calculate autocorrelations
+
+    ### Factual ###
+    ###############
+    
+    ## of DPA ENSEMBLE
+    # dpa ensemble into torch array
+    dpa_1300_fact_raw_pt = torch.from_numpy(dpa_1300_fact_raw.values)
+    # compute autocorrelation
+    autocorr_mult, _ = evaluation.compute_autocorrelation(dpa_1300_fact_raw_pt, mask_x_te, ds_test_eth_fact)
+
+    ## of true TEST data
+    autocorr, autocorr_xr = evaluation.compute_autocorrelation(eth_fact_1300_test_reduced, mask_x_te, ds_test_eth_fact)
+    
+    fig, ax = ut.plot_map(autocorr_xr, np.linspace(0,1,21), cmap="YlOrRd", cmap_label = "Autocorrelation")
+    fig.savefig(f"{save_path_eth}/autocorrelation_truth.png")
+
+
+
+    # difference between ensemble members and truth ###
+    autocorr_diff = autocorr_mult - autocorr
+    print("autocorrelation differene shape:", autocorr_diff.shape)
+    autocorr_diff_ens_mean = autocorr_diff.mean(dim=0)
+    autocorr_diff_ens_mean_spat_mean = autocorr_diff_ens_mean.mean()
+    log_print(log_file, f"Spatial mean autocorrelation difference: {autocorr_diff_ens_mean_spat_mean}")
+    ###################################################
+
+    autocorr_restored = ut.restore_nan_columns(autocorr_diff_ens_mean, mask_x_te)
+    print("autocorr_restored shape", autocorr_restored.shape)
+    autocorr_xr = ut.torch_to_dataarray(autocorr_restored, ds_test_eth_fact)
+    fig, ax = ut.plot_map(autocorr_xr, np.linspace(-0.2,0.2,17), cmap="PuOr", cmap_label = "Autocorrelation")
+    fig.savefig(f"{save_path_eth}/autocorrelation_diff_ens_mean.png")
+
+    ### Counterfactual ###
+    ######################
+    ## of DPA ENSEMBLE
+    # dpa ensemble into torch array
+    dpa_1300_cf_raw_pt = torch.from_numpy(dpa_1300_cf_raw.values)
+    # compute autocorrelation
+    autocorr_mult_cf, _ = evaluation.compute_autocorrelation(dpa_1300_cf_raw_pt, mask_x_te, ds_test_eth_cf)
+
+    ## of true TEST data
+    autocorr_cf, autocorr_xr_cf = evaluation.compute_autocorrelation(eth_cf_1300_test_reduced, mask_x_te, ds_test_eth_cf)
+    
+    fig, ax = ut.plot_map(autocorr_xr_cf, np.linspace(0,1,21), cmap="YlOrRd", cmap_label = "Autocorrelation")
+    fig.savefig(f"{save_path_eth}/autocorrelation_truth_cf.png")
+
+
+
+    # difference between ensemble members and truth ###
+    autocorr_diff_cf = autocorr_mult_cf - autocorr_cf
+    print("autocorrelation differene shape:", autocorr_diff_cf.shape)
+    autocorr_diff_ens_mean_cf = autocorr_diff_cf.mean(dim=0)
+    autocorr_diff_ens_mean_spat_mean_cf = autocorr_diff_ens_mean_cf.mean()
+    log_print(log_file, f"Spatial mean counterfactual autocorrelation difference: {autocorr_diff_ens_mean_spat_mean_cf}")
+    ###################################################
+
+    autocorr_restored_cf = ut.restore_nan_columns(autocorr_diff_ens_mean_cf, mask_x_te)
+    print("autocorr_restored shape", autocorr_restored_cf.shape)
+    autocorr_xr_cf = ut.torch_to_dataarray(autocorr_restored_cf, ds_test_eth_cf)
+    fig, ax = ut.plot_map(autocorr_xr_cf, np.linspace(-0.2,0.2,17), cmap="PuOr", cmap_label = "Autocorrelation")
+    fig.savefig(f"{save_path_eth}/autocorrelation_diff_ens_mean_cf.png")
+
     ####################
     ### Energy Score ###
     ####################
@@ -195,6 +411,12 @@ def main():
     print("e_loss_restored shape:", e_loss_restored.shape)
 
     
+
+    # write to logfile
+    log_print(log_file, f"Factual Energy-Score spatial mean: {e_loss_array[0,:].mean()}")
+    log_print(log_file, f"Factual S1-Score spatial mean: {e_loss_array[1,:].mean()}")
+    log_print(log_file, f"Factual S2-Score spatial mean: {e_loss_array[2,:].mean()}")
+    
     # transform e_loss_array into xarray
     e_loss_xr = ut.torch_to_dataarray(x_tensor = e_loss_restored, coords_ds = ds_test_eth_fact, lat_dim=32, lon_dim=32, name="energy_loss_total") # add oth dimensin 
     s1_loss_xr = ut.torch_to_dataarray(x_tensor = s1_loss_restored, coords_ds = ds_test_eth_fact, lat_dim=32, lon_dim=32, name="s1_loss")
@@ -208,20 +430,20 @@ def main():
     
     # plot energy score
     fig, ax = ut.plot_map(e_loss_xr, energy_levels, cmap="YlOrRd", cmap_label = "Energy Loss")
-    ax.set_title("Energy Loss", fontsize=title_fontsize)
-    fig.savefig("ETH_analysis_results/final_analysis_test_ETH/energy_loss_map.png")
+    ax.set_title("Factual Energy Loss", fontsize=title_fontsize)
+    fig.savefig(f"{save_path_eth}/energy_loss_map.png")
     plt.show()
 
     # plot S1 loss
     fig, ax = ut.plot_map(s1_loss_xr, levels, cmap="YlOrRd", cmap_label = "Reconstruction Loss (S1)")
-    ax.set_title("S1 Loss", fontsize=title_fontsize)
-    fig.savefig("ETH_analysis_results/final_analysis_test_ETH/S1_loss_map.png")
+    ax.set_title("Factual S1 Loss", fontsize=title_fontsize)
+    fig.savefig(f"{save_path_eth}/S1_loss_map.png")
     plt.show()
 
     # plot s2 loss
     fig, ax = ut.plot_map(s2_loss_xr, levels, cmap="YlOrRd", cmap_label = "Variability Loss (S2)")
-    ax.set_title("S2 Loss", fontsize=title_fontsize)
-    fig.savefig("ETH_analysis_results/final_analysis_test_ETH/S2_loss_map.png")
+    ax.set_title("Factual S2 Loss", fontsize=title_fontsize)
+    fig.savefig(f"{save_path_eth}/S2_loss_map.png")
     plt.show()
 
     
@@ -270,6 +492,11 @@ def main():
     s1_loss_restored = ut.restore_nan_columns(e_loss_array[1,:].unsqueeze(0), mask_x_te)
     s2_loss_restored = ut.restore_nan_columns(e_loss_array[2,:].unsqueeze(0), mask_x_te)
 
+    # write to logfile
+    log_print(log_file, f"Counterfactual Energy-Score spatial mean: {e_loss_array[0,:].mean()}")
+    log_print(log_file, f"Counterfactual S1-Score spatial mean: {e_loss_array[1,:].mean()}")
+    log_print(log_file, f"Counterfactual S2-Score spatial mean: {e_loss_array[2,:].mean()}")
+
     print("e_loss_restored shape:", e_loss_restored.shape)
 
     
@@ -284,22 +511,20 @@ def main():
     # plot energy score
     fig, ax = ut.plot_map(e_loss_xr, energy_levels, cmap="YlOrRd", cmap_label = "Energy Loss")
     ax.set_title("Counterfactual Energy Loss", fontsize=title_fontsize)
-    fig.savefig("ETH_analysis_results/final_analysis_test_ETH/cf_energy_loss_map.png")
+    fig.savefig(f"{save_path_eth}/cf_energy_loss_map.png")
     plt.show()
 
     # plot S1 loss
     fig, ax = ut.plot_map(s1_loss_xr, levels, cmap="YlOrRd", cmap_label = "Reconstruction Loss (S1)")
     ax.set_title("Counterfactual S1 Loss", fontsize=title_fontsize)
-    fig.savefig("ETH_analysis_results/final_analysis_test_ETH/cf_S1_loss_map.png")
+    fig.savefig(f"{save_path_eth}/cf_S1_loss_map.png")
     plt.show()
 
     # plot s2 loss
     fig, ax = ut.plot_map(s2_loss_xr, levels, cmap="YlOrRd", cmap_label = "Variability Loss (S2)")
     ax.set_title("Counterfactual S2 Loss", fontsize=title_fontsize)
-    fig.savefig("ETH_analysis_results/final_analysis_test_ETH/cf_S2_loss_map.png")
+    fig.savefig(f"{save_path_eth}/cf_S2_loss_map.png")
     plt.show()
-    
-    sys.exit()
 
     ### PER TIME STEP ###
     #####################
@@ -327,7 +552,7 @@ def main():
         # Save
         #torch.save(e_loss_array, "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/new_e_loss_over_time.pt")
 
-    e_loss_pre = torch.load("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/e_loss_over_time.pt")
+    e_loss_array = torch.load("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/e_loss_over_time.pt")
     #print("e loss shape:", e_loss_pre.shape)
 
     # create xarray from e_loss
@@ -338,7 +563,7 @@ def main():
     
     # Convert torch → numpy and wrap into xarray
     eloss_xr = xr.DataArray(
-        e_loss_pre.detach().numpy(),                     # convert to NumPy
+        e_loss_array.detach().numpy(),                     # convert to NumPy
         dims=("time", "loss"),                 # name the dimensions
         coords={
             "time": time_coord,
@@ -362,7 +587,7 @@ def main():
 
     
     # Create figure and axis
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=figsize_ts)
     
     # Plot standardized... 
     # energy loss (yearly)
@@ -391,16 +616,15 @@ def main():
     
     # Add legend and labels
     ax.legend(fontsize=10)
-    ax.set_title("Standardized Losses", fontsize=14)
-    ax.set_xlabel("Year", fontsize=12)
-    ax.set_ylabel("Standardized Value", fontsize=12)
+    ax.set_title("Factual Test Losses", fontsize=title_fontsize)
+    ax.set_xlabel("Year", fontsize=title_fontsize)
+    ax.set_ylabel("Loss (Standardized)", fontsize=title_fontsize)
     ax.grid(True, linestyle="--", alpha=0.5)
     
     # Save figure
     plt.tight_layout()
-    fig.savefig("ETH_analysis_results/energy_loss_time_series_eth_test_set.png", dpi=300)
+    fig.savefig(f"{save_path_eth}/energy_loss_time_series_eth_test_set.png", dpi=300)
     plt.show()
-    sys.exit()
 
     ### Counterfactual ###
     ######################
@@ -423,9 +647,9 @@ def main():
             print("Energy Loss:", e_loss)
 
         # Save
-        #torch.save(e_loss_array, "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/new_e_loss_over_time.pt")
+        #torch.save(e_loss_array, "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/e_loss_over_time_cf.pt")
 
-    e_loss_pre = torch.load("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/e_loss_over_time.pt")
+    e_loss_array = torch.load("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/e_loss_over_time_cf.pt")
     #print("e loss shape:", e_loss_pre.shape)
 
     # create xarray from e_loss
@@ -436,7 +660,7 @@ def main():
     
     # Convert torch → numpy and wrap into xarray
     eloss_xr = xr.DataArray(
-        e_loss_pre.detach().numpy(),                     # convert to NumPy
+        e_loss_array.detach().numpy(),                     # convert to NumPy
         dims=("time", "loss"),                 # name the dimensions
         coords={
             "time": time_coord,
@@ -460,7 +684,7 @@ def main():
 
     
     # Create figure and axis
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=figsize_ts)
     
     # Plot standardized... 
     # energy loss (yearly)
@@ -489,16 +713,18 @@ def main():
     
     # Add legend and labels
     ax.legend(fontsize=10)
-    ax.set_title("Standardized Losses", fontsize=14)
-    ax.set_xlabel("Year", fontsize=12)
-    ax.set_ylabel("Standardized Value", fontsize=12)
+    ax.set_title("Counterfactual Test Losses", fontsize=title_fontsize)
+    ax.set_xlabel("Year", fontsize=title_fontsize)
+    ax.set_ylabel("Loss (Standardized)", fontsize=title_fontsize)
     ax.grid(True, linestyle="--", alpha=0.5)
     
     # Save figure
     plt.tight_layout()
-    fig.savefig("ETH_analysis_results/energy_loss_time_series_eth_test_set_cf.png", dpi=300)
+    fig.savefig(f"{save_path_eth}/energy_loss_time_series_eth_test_set_cf.png", dpi=300)
     plt.show()
-    sys.exit()
+    
+    
+    
     
     ###########################
     ### PEARSON CORRELATION ###
@@ -525,7 +751,8 @@ def main():
     dpa_ens_mean_cf_1400_raw = dpa_1400_cf_raw.mean(dim="ensemble_member")
     dpa_ens_mean_cf_1500_raw = dpa_1500_cf_raw.mean(dim="ensemble_member")
 
-
+    ### Factual ###
+    ###############
 
     # mean of RAW factual ensemble
     print("Calculating ensemble mean ...")
@@ -557,10 +784,35 @@ def main():
     corr_spatial = ut.torch_to_dataarray(corr_spatial_pre, ds_test, name="Pearson correlation coefficient")
     
     # plot
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize_map, subplot_kw={'projection': ccrs.PlateCarree()})
-    plot_corr = ut.plot_temperature_panel(ax, corr_spatial, corr_spatial.max().item(), levels = np.linspace(0.7, 1, 7), cbar=True, cmap="YlOrRd")
-    ax.set_title("Pearson Correlation", fontsize=title_fontsize)
-    plt.savefig("ETH_analysis_results/correlation_test_figure.png")
+    #fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize_map, subplot_kw={'projection': ccrs.PlateCarree()})
+    #plot_corr = ut.plot_temperature_panel(ax, corr_spatial, corr_spatial.max().item(), levels = np.linspace(0.7, 1, 7), cbar=True, cmap="YlOrRd")
+    fig, ax = ut.plot_map(corr_spatial, np.linspace(0.8, 1, 9), cmap="YlOrRd", cmap_label = "Pearson Correlation")
+    ax.set_title("Factual Pearson Correlation", fontsize=title_fontsize)
+    plt.savefig(f"{save_path_eth}/correlation_eth_test_figure.png")
+
+    ### Counterfactual ###
+    ######################
+
+    ## turn dpa ens (mean) into torch array
+    dpa_ens_mean_cf_1300_raw_pt = torch.from_numpy(dpa_ens_mean_cf_1300_raw.values) #dpa_ens_mean_pt
+
+    # calculate correlation
+    r_cols_cf = evaluation.pearsonr_cols(eth_cf_1300_test_reduced, dpa_ens_mean_cf_1300_raw_pt, dim=0)  # shape: (648,)
+
+    # restore nans
+    # add dimension for function ut.restore_nan_columns to work correctly
+    corr_spatial_pre_cf = ut.restore_nan_columns(r_cols_cf[None, :], mask_x_te)
+
+    corr_spatial_cf = ut.torch_to_dataarray(corr_spatial_pre_cf, ds_test, name="Pearson correlation coefficient")
+
+    # plot
+    #fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize_map, subplot_kw={'projection': ccrs.PlateCarree()})
+    #plot_corr = ut.plot_temperature_panel(ax, corr_spatial, corr_spatial.max().item(), levels = np.linspace(0.7, 1, 7), cbar=True, cmap="YlOrRd")
+    fig, ax = ut.plot_map(corr_spatial_cf, np.linspace(0.8, 1, 9), cmap="YlOrRd", cmap_label = "Pearson Correlation")
+    ax.set_title("Counterfactual Pearson Correlation", fontsize=title_fontsize)
+    plt.savefig(f"{save_path_eth}/cf_correlation_eth_test_figure.png")
+
+    
 
     ################
     ### R2 score ###
@@ -580,7 +832,7 @@ def main():
     plot_r2 = ut.plot_temperature_panel(ax, r2_spatial, r2_spatial.max().item(), levels = np.linspace(0.7, 1, 7), cbar=True, cmap="YlOrRd")
     ax.set_title("R2", fontsize=title_fontsize)
 
-    plt.savefig("ETH_analysis_results/R2_test_figure.png")
+    plt.savefig(f"{save_path_eth}/R2_eth_test_figure.png")
 
     
 
@@ -588,10 +840,11 @@ def main():
     ### Reliability Index Map ###
     #############################
 
+    ### Factual ###
+    ###############
+    
     # turn array into .pt array
     dpa_1300_fact_raw_pt = torch.from_numpy(dpa_1300_fact_raw.values)
-
-
     
     # array to store reliability index
     ri_vals = torch.zeros((648))
@@ -613,6 +866,7 @@ def main():
     # add dimension for function ut.restore_nan_columns to work correctly
     ri_spatial_pre = ut.restore_nan_columns(ri_vals[None, :], mask_x_te)
     print("RI spatial shape", ri_spatial_pre.shape)
+    log_print(log_file, f"Factual RI spatial mean: {ri_vals.mean()}")
     
     # turn statistics array into xarray
     ri_spatial = ut.torch_to_dataarray(ri_spatial_pre, ds_test, name="Reliability Index")
@@ -620,10 +874,48 @@ def main():
     
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize_map, subplot_kw={'projection': ccrs.PlateCarree()})
     plot_ri = ut.plot_temperature_panel(ax, ri_spatial, ri_spatial.max().item(), levels = np.linspace(0, 0.3, 13), cbar=True)
-    ax.set_title("Reliability Index", fontsize = title_fontsize)
-    plt.savefig("ETH_analysis_results/ri_spatial.png")
+    ax.set_title("Factual Reliability Index", fontsize = title_fontsize)
+    plt.savefig(f"{save_path_eth}/factual_ri_spatial.png")
 
-    ### PLOT SOME RANK HISTOGRAMS ###
+    ### Counterfactual ###
+    ######################
+
+    # turn array into .pt array
+    dpa_1300_cf_raw_pt = torch.from_numpy(dpa_1300_cf_raw.values)
+
+    # array to store reliability index
+    ri_vals_cf = torch.zeros((648))
+
+    for n in range(648):
+        # INSERT FULL DPA ENSEMBLE IN FOLLOWING LINE
+        ranks = ut.rank_histogram(eth_cf_1300_test_reduced[:,n].detach().numpy(), dpa_1300_cf_raw_pt[:-1,:,n].T.detach().numpy()) # dpa_ens_pt
+        counts, bin_edges = np.histogram(
+            ranks, 
+            bins=np.arange(ens_members + 2) - 0.5
+            )
+    
+        # reliability index
+        ri_cf = ut.reliability_index(counts)
+        ri_vals_cf[n] = ri_cf
+
+    # PLOT
+    # restore nans
+    # add dimension for function ut.restore_nan_columns to work correctly
+    ri_spatial_cf_pre = ut.restore_nan_columns(ri_vals_cf[None, :], mask_x_te)
+    
+    print("RI spatial shape", ri_spatial_cf_pre.shape)
+    log_print(log_file, f"Counterfactual RI spatial mean: {ri_vals_cf.mean()}")
+    
+    # turn statistics array into xarray
+    ri_spatial_cf = ut.torch_to_dataarray(ri_spatial_cf_pre, ds_test, name="Reliability Index")
+    
+    
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize_map, subplot_kw={'projection': ccrs.PlateCarree()})
+    plot_ri = ut.plot_temperature_panel(ax, ri_spatial_cf, ri_spatial_cf.max().item(), levels = np.linspace(0, 0.3, 13), cbar=True)
+    ax.set_title("Counterfactual Reliability Index", fontsize = title_fontsize)
+    plt.savefig(f"{save_path_eth}/cf_ri_spatial.png")
+    
+    
 
 
     ###################
@@ -650,7 +942,7 @@ def main():
     ax.legend()
     fig.tight_layout()
     ax.set_title("Standard deviation", fontsize=title_fontsize)
-    fig.savefig("ETH_analysis_results/time_series_dpa_mean_vs_test_member.png")
+    fig.savefig(f"{save_path_eth}/time_series_dpa_mean_vs_test_member.png")
     plt.show()
 
     ##################################
@@ -682,7 +974,7 @@ def main():
                                                   title = f"Factual Temperatures Germany {year}", 
                                                   climate = "Factual"
                                                   )        
-        fig.savefig(f"ETH_analysis_results/Germany/Germany_mean_fact_T_ts_{year}.png")
+        fig.savefig(f"{save_path_eth}/Germany/Germany_mean_fact_T_ts_{year}.png")
         plt.show()
     
         ### Counterfactual ###
@@ -698,7 +990,7 @@ def main():
                                                   title_fontsize = title_fontsize,
                                                   title = f"Counterfactual Temperatures Germany {year}",
                                                   climate = "Counterfactual")        
-        fig.savefig(f"ETH_analysis_results/Germany/Germany_mean_cf_T_ts_{year}.png")
+        fig.savefig(f"{save_path_eth}/Germany/Germany_mean_cf_T_ts_{year}.png")
         plt.show()
     
     
@@ -725,7 +1017,7 @@ def main():
                                                   title = f"Factual Temperatures Spain {year}", 
                                                   climate = "Factual"
                                                   )        
-        fig.savefig(f"ETH_analysis_results/Spain/Spain_mean_fact_T_ts_{year}.png")
+        fig.savefig(f"{save_path_eth}/Spain/Spain_mean_fact_T_ts_{year}.png")
         plt.show()
 
         ### Counterfactual ###
@@ -741,7 +1033,7 @@ def main():
                                                   title_fontsize = title_fontsize,
                                                   title = f"Counterfactual Temperatures Spain {year}",
                                                   climate = "Counterfactual")        
-        fig.savefig(f"ETH_analysis_results/Spain/Spain_mean_cf_T_ts_{year}.png")
+        fig.savefig(f"{save_path_eth}/Spain/Spain_mean_cf_T_ts_{year}.png")
         plt.show()
     
     
@@ -825,7 +1117,7 @@ def main():
     ### max temperatures ###
     fig = evaluation.plot_violins(truth = ds_test_1300_eth_fact, 
                             dpa_ensemble = dpa_1300_fact_restored,
-                            save_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/ETH_analysis_results/factual_extreme_violins",
+                            save_path = f"{save_path_eth}",
                             lat_min = ger_lat_min,
                             lat_max = ger_lat_max,
                             lon_min = ger_lon_min,
@@ -836,7 +1128,7 @@ def main():
 
     fig = evaluation.plot_violins(truth = ds_test_1300_eth_cf, 
                             dpa_ensemble = dpa_1300_cf_restored,
-                            save_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/ETH_analysis_results/counterfactual_extreme_violins",
+                            save_path = f"{save_path_eth}",
                             lat_min = ger_lat_min,
                             lat_max = ger_lat_max,
                             lon_min = ger_lon_min,
@@ -848,7 +1140,7 @@ def main():
     ### random temperatures ###
     fig = evaluation.plot_violins(truth = ds_test_1300_eth_fact, 
                             dpa_ensemble = dpa_1300_fact_restored,
-                            save_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/ETH_analysis_results/factual_random_violins",
+                            save_path = f"{save_path_eth}",
                             lat_min = ger_lat_min,
                             lat_max = ger_lat_max,
                             lon_min = ger_lon_min,
@@ -860,7 +1152,7 @@ def main():
 
     fig = evaluation.plot_violins(truth = ds_test_1300_eth_cf, 
                             dpa_ensemble = dpa_1300_cf_restored,
-                            save_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/ETH_analysis_results/counterfactual_random_violins",
+                            save_path = f"{save_path_eth}",
                             lat_min = ger_lat_min,
                             lat_max = ger_lat_max,
                             lon_min = ger_lon_min,
@@ -883,12 +1175,12 @@ def main():
                                              ger_lat_max,
                                              ger_lon_min,
                                              ger_lon_max,
-                                             figsize_map,
-                                             "Rank histogram Germany",
+                                             figsize_hist,
+                                             "Factual Rank histogram Germany",
                                              title_fontsize
                                              )
     
-    fig.savefig("ETH_analysis_results/Ger_rank_hist.png")
+    fig.savefig(f"{save_path_eth}/Ger_rank_hist.png")
 
     ### Spain ###
     
@@ -898,12 +1190,12 @@ def main():
                                              sp_lat_max,
                                              sp_lon_min,
                                              sp_lon_max,
-                                             figsize_map,
-                                             "Rank histogram Spain",
+                                             figsize_hist,
+                                             "Factual Rank histogram Spain",
                                              title_fontsize
                                              )
     
-    fig.savefig("ETH_analysis_results/Sp_rank_hist.png")
+    fig.savefig(f"{save_path_eth}/Sp_rank_hist.png")
 
     # Counterfactual Rank Hists
 
@@ -915,12 +1207,12 @@ def main():
                                              ger_lat_max,
                                              ger_lon_min,
                                              ger_lon_max,
-                                             figsize_map,
-                                             "Rank histogram Germany",
+                                             figsize_hist,
+                                             "Counterfactual Rank histogram Germany",
                                              title_fontsize
                                              )
     
-    fig.savefig("ETH_analysis_results/Ger_cf_rank_hist.png")
+    fig.savefig(f"{save_path_eth}/Ger_cf_rank_hist.png")
 
     ### Spain ###
     
@@ -930,12 +1222,12 @@ def main():
                                              sp_lat_max,
                                              sp_lon_min,
                                              sp_lon_max,
-                                             figsize_map,
-                                             "Rank histogram Spain",
+                                             figsize_hist,
+                                             "Counterfactual Rank histogram Spain",
                                              title_fontsize
                                              )
     
-    fig.savefig("ETH_analysis_results/Sp_cf_rank_hist.png")
+    fig.savefig(f"{save_path_eth}/Sp_cf_rank_hist.png")
 
     
 
@@ -1007,7 +1299,7 @@ def main():
     #plt.show()
 
     # end script
-    #sys.exit()
+    
 
 
     ############
@@ -1075,11 +1367,24 @@ def main():
     
     ax.legend()
     ax.set_title("European Domain Average Yearly Average Temperature", fontsize=title_fontsize)
-    fig.savefig("ETH_analysis_results/LE_Europe_Forced_response.png")
+    ax.set_xlabel("Year", fontsize=title_fontsize)
+    ax.set_ylabel("TREFHT", fontsize=title_fontsize)
+    fig.savefig(f"{save_path_eth}/LE_Europe_Forced_response.png")
     plt.show()
 
 
+    ################################
+    ### RUN LE TRAIN DATA SCRIPT ###
+    ################################
 
+    analyse_dpa_ensemble_from_LE_train_set.main() 
+
+    ###########################
+    ### CREATE SUMMARY PAGE ###
+    ###########################
+    
+    create_summary_page.summary(path_eth=save_path_eth, save_path=save_path_eth, period=f"{time_period[0]}-{time_period[1]}")
+    
 
 
 

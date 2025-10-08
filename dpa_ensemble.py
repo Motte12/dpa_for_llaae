@@ -53,7 +53,7 @@ def load_test_data(settings_file_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_
     z500_train = z500[:int(128000),:]
     z500_test = z500[int(-64000):,:]
     
-    return z500_test, z500_train, mask_x_te, ds_train, ds_test, x_te_reduced, x_tr_reduced
+    return z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced
 
 def load_eth_test_data(settings_file_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/dpa_train_settings.json"):
     

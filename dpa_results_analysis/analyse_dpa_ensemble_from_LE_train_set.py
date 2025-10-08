@@ -32,7 +32,7 @@ def main():
     # plotting settings
     title_fontsize = 18
     figsize_map = (8,6)
-    figsize_ts = (10,6)
+    figsize_ts = (10,8)
     time_period = ["1850", "2100"]
 
     # years for time series plotting
@@ -42,7 +42,7 @@ def main():
 
     
     # load data
-    z500_test, z500_train, mask_x_te, ds_train, ds_test, x_te_reduced, x_tr_reduced = de.load_test_data()
+    z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced = de.load_test_data()
     print("x_tr_reduced:", x_tr_reduced.shape)
     ####################
     ### Energy Score ###
@@ -61,7 +61,7 @@ def main():
     print("DPA tensor list element shape:", dpa_list[0].shape) # list elements contain all timesteps 14307 (3 x 4769)
 
     
-    if True:
+    if False:
         e_loss_array = torch.zeros(3,648)
         for i in range(648):
             # keep only subset of tensors in list
@@ -80,10 +80,10 @@ def main():
         
 
         # save e_loss:
-        torch.save(e_loss_array, "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/train_set_ensemble_after_30_epochs/train_e_loss_spatial.pt")
+        #torch.save(e_loss_array, "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/train_set_ensemble_after_30_epochs/train_e_loss_spatial.pt")
         
     # load e_loss array:
-    #torch.load("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/train_set_ensemble_after_30_epochs/train_e_loss_spatial.pt")
+    e_loss_array = torch.load("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/train_set_ensemble_after_30_epochs/train_e_loss_spatial.pt")
 
     print("E Loss shape:", e_loss_array.shape)
     print("type mask:", type(mask_x_te))
@@ -112,19 +112,19 @@ def main():
     
     # plot energy score
     fig, ax = ut.plot_map(e_loss_xr, energy_levels, cmap="YlOrRd", cmap_label = "Energy Loss")
-    ax.set_title("Energy Loss", fontsize=title_fontsize)
+    ax.set_title("Train Set Energy Loss", fontsize=title_fontsize)
     fig.savefig("ETH_analysis_results/final_analysis_train_LE/LE_train_set_energy_loss_map.png")
     plt.show()
 
     # plot S1 loss
     fig, ax = ut.plot_map(s1_loss_xr, levels, cmap="YlOrRd", cmap_label = "Reconstruction Loss (S1)")
-    ax.set_title("S1 Loss", fontsize=title_fontsize)
+    ax.set_title("Train Set S1 Loss", fontsize=title_fontsize)
     fig.savefig("ETH_analysis_results/final_analysis_train_LE/LE_train_set_S1_loss_map.png")
     plt.show()
 
     # plot s2 loss
     fig, ax = ut.plot_map(s2_loss_xr, levels, cmap="YlOrRd", cmap_label = "Variability Loss (S2)")
-    ax.set_title("S2 Loss", fontsize=title_fontsize)
+    ax.set_title("Train Set S2 Loss", fontsize=title_fontsize)
     fig.savefig("ETH_analysis_results/final_analysis_train_LE/LE_train_set_S2_loss_map.png")
     plt.show()
 
@@ -227,7 +227,7 @@ def main():
     ### PLOT ###
 
     # Create figure and axis
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=figsize_ts)
     
     # Plot standardized energy loss (yearly)
     yearly_eloss_standardized.sel(loss="energy_loss").plot(
@@ -247,9 +247,9 @@ def main():
     
     # Add legend and labels
     ax.legend(fontsize=10)
-    ax.set_title("Standardized Energy Loss vs. European AODVIS", fontsize=14)
-    ax.set_xlabel("Year", fontsize=12)
-    ax.set_ylabel("Standardized Value", fontsize=12)
+    ax.set_title("Standardized Energy Loss vs. European AODVIS", fontsize=title_fontsize)
+    ax.set_xlabel("Year", fontsize=title_fontsize)
+    ax.set_ylabel("Standardized Value", fontsize=title_fontsize)
     ax.grid(True, linestyle="--", alpha=0.5)
     
     # Save figure
@@ -261,7 +261,7 @@ def main():
     # all losses
     
     # Create figure and axis
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=figsize_ts)
     
     # Plot all three losses
     yearly_eloss_standardized.sel(loss="energy_loss").plot(
@@ -287,9 +287,9 @@ def main():
     
     # Customize labels and legend
     ax.legend(fontsize=10, loc="best")
-    ax.set_title("Yearly Standardized Loss Components", fontsize=14)
-    ax.set_xlabel("Year", fontsize=12)
-    ax.set_ylabel("Standardized Value", fontsize=12)
+    ax.set_title("Train Loss Components (yearly averages)", fontsize=title_fontsize)
+    ax.set_xlabel("Year", fontsize=title_fontsize)
+    ax.set_ylabel("Loss (Standardized)", fontsize=title_fontsize)
     ax.grid(True, linestyle="--", alpha=0.5)
     
     # Optimize layout and save

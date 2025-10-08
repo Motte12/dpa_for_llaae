@@ -562,7 +562,11 @@ def restore_nan_columns(reduced_tensor: torch.Tensor, column_mask: torch.Tensor)
     Returns:
         - restored_tensor: Tensor with original number of columns (NaNs in removed positions)
     """
-    n_rows = reduced_tensor.shape[0]
+    if reduced_tensor.ndim == 1:
+        n_rows = 1
+    elif reduced_tensor.ndim > 1:
+        n_rows = reduced_tensor.shape[0]
+    #n_rows = reduced_tensor.shape[0]
     n_cols = column_mask.numel()
     
     restored_tensor = torch.full((n_rows, n_cols), float('nan'), dtype=reduced_tensor.dtype, device=reduced_tensor.device)
@@ -681,7 +685,12 @@ def torch_to_dataarray(x_tensor, coords_ds, lat_dim=32, lon_dim=32, name="variab
         data_np = x_tensor.detach().cpu().numpy()
 
     # Step 2: Determine time_steps and reshape
-    time_steps = data_np.shape[0]
+    print("data_np dimensions:", data_np.ndim)
+    if data_np.ndim == 2:
+        time_steps = 1
+    elif data_np.ndim > 2:
+        time_steps = data_np.shape[0]
+    
     data_np = data_np.reshape(time_steps, lat_dim, lon_dim)
 
     # Step 3: Transpose to (lat, lon, time)
