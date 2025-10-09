@@ -53,6 +53,8 @@ def main():
     # create germany and spain subdirs
     os.makedirs(f"{save_path_eth}/Germany", exist_ok=True)
     os.makedirs(f"{save_path_eth}/Spain", exist_ok=True)
+    os.makedirs(f"{save_path_eth}/quantiles", exist_ok=True)
+    
     print(f"{save_path_eth}/Germany")
     print(f"{save_path_eth}/Spain")
     
@@ -183,8 +185,11 @@ def main():
     ### Quantiles ### add for random locations?? add counterfactual??
     #################
 
-    quantiles = torch.linspace(0,1,101)
-    print("quantiles:", quantiles)
+    ### Factual ###
+    ###############
+
+    quantiles = torch.linspace(0,1,21)
+    log_print(log_file, f"quantiles: {quantiles}")
     
     ### TRUTH ###########################################################################################################
     # compute quantiles along 0th (time) dimension
@@ -198,104 +203,271 @@ def main():
     quantiles_fact_restored = ut.restore_nan_columns(quantiles_fact_true[2,:], mask_x_te)
     quantiles_fact_restored_xr = ut.torch_to_dataarray(quantiles_fact_restored, ds_test_eth_fact)
     fig, ax = ut.plot_map(quantiles_fact_restored_xr, np.linspace(2,6,21), cmap="YlOrRd", cmap_label = "Autocorrelation")
-    fig.savefig(f"{save_path_eth}/075_quantile_truth.png")
+    #fig.savefig(f"{save_path_eth}/factual_075_quantile_truth.png")
     ######################################################################################################################
 
     
     ### DPA ENSEMBLE #####################################################################################################
+    
+    # DISTINCT members ###
+    ######################
     dpa_1300_fact_raw_pt = torch.from_numpy(dpa_1300_fact_raw.values) # turn into pytorch array
+    # quantiles
     quantiles_fact_dpa = torch.quantile(dpa_1300_fact_raw_pt, q=quantiles, dim=1)
     print("DPA quantiles shape:", quantiles_fact_dpa.shape)
 
-    # mean over ens members and locations
-    quantiles_fact_dpa_mean_spat_mean = quantiles_fact_dpa.mean(dim=(1,2))
+    # DISTINCT MEMBERS + MEAN over ens members and locations
+    quantiles_fact_dpa_mean = quantiles_fact_dpa.mean(dim=(1))
+    print(quantiles_fact_dpa_mean.shape)
+    quantiles_fact_dpa_mean_spat_mean = quantiles_fact_dpa_mean.mean(dim=(1))
 
     # DIFFERENCE DPA quantiles and true quantiles
     quantile_diffs_ens = torch.abs(quantiles_fact_dpa - quantiles_fact_true.unsqueeze(1))
 
-    # mean over ensemble members and locations (grid-cells)
+    # difference: mean over ensemble members and locations (grid-cells)
+    # the absolute errors of the sampled vs. true RCM’s quantiles are averaged across all locations
     quantile_diffs_ens_mean = quantile_diffs_ens.mean(dim=(1,2)) # absolute errors averaged across ensemble members and locations
     print("quantile diffs shape", quantile_diffs_ens.shape)
-    log_print(log_file, f"Factual quantile differences: {quantile_diffs_ens_mean}")
-    ######################################################################################################################
+    log_print(log_file, f"Factual mean quantile differences (across all quantiles): {quantile_diffs_ens_mean.mean()}") # absolute errors averaged over quantiles
+    log_print(log_file, f"Factual 0.05-quantile differences: {quantile_diffs_ens_mean[1]}") # absolute errors of 0.05 quantile
 
 
-    
-
-    # Q-Q plot ###########################################################################################################
     # Sort both datasets
     q1 = quantiles_fact_dpa_mean_spat_mean.detach().numpy()
     q2 = quantiles_fact_true_spat_mean.detach().numpy()
     
     
-    # Plot quantile–quantile relationship
+    # Plot Mean of Quantiles 
     fig, ax = plt.subplots(figsize=(8,8))
 
     ax.scatter(q1, q2, alpha=0.7, linewidths=0.2)
     ax.plot([q1.min(), q1.max()], [q1.min(), q1.max()], 'r--', label='1:1 line')
     ax.set_ylabel("Truth quantiles")
     ax.set_xlabel("Model quantiles")
-    ax.set_title("Q–Q Plot: Truth vs Model")
+    ax.set_title("Factual Q–Q Plot: Truth vs mean of DPA ensemble quantiles spatial mean")
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
     plt.show()
-    fig.savefig(f"{save_path_eth}/Q-Q_plot.png")
+    fig.savefig(f"{save_path_eth}/quantiles/factual_Q-Q_plot_mean_of_quantiles_spatial_mean.png")
+
+    
+    
+    
+    # Quantiles of DPA ENSEMBLE MEAN ####
+    #####################################
+    # compute ensemble mean
+    dpa_1300_fact_raw_ens_mean_pt = dpa_1300_fact_raw_pt.mean(dim=0)
+    print(dpa_1300_fact_raw_ens_mean_pt.shape)
+    
+    # compute quantiles 
+    dpa_ens_mean_quantiles_pre = (torch.quantile(dpa_1300_fact_raw_ens_mean_pt, q=quantiles, dim=0))
+    dpa_ens_mean_quantiles_spat_mean = dpa_ens_mean_quantiles_pre.mean(dim=1)
+    print(dpa_ens_mean_quantiles_spat_mean.shape)
+    
+    # Plot quantiles of DPA ensemble mean for spatial domain average 
+    q1 = dpa_ens_mean_quantiles_spat_mean.detach().numpy()
+    q2 = quantiles_fact_true_spat_mean.detach().numpy()
+    
+    fig, ax = plt.subplots(figsize=(8,8))
+
+    ax.scatter(q1, q2, alpha=0.7, linewidths=0.2)
+    ax.plot([q1.min(), q1.max()], [q1.min(), q1.max()], 'r--', label='1:1 line')
+    ax.set_ylabel("Truth quantiles")
+    ax.set_xlabel("Model quantiles")
+    ax.set_title("Factual Q–Q Plot: Truth vs DPA ensemble mean spatial mean")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+    fig.savefig(f"{save_path_eth}/quantiles/factual_Q-Q_plot_of_dpa_ens_mean_spatial_mean.png")
+
+    
+    # ENSEMBLE MEAN + SINGLE GRID CELLS ###
+    # plot true against quantiles of ensemble mean 
+    
+    
+    # Plot: Q-Q of different grid cells 
+    fig, ax = plt.subplots(4,4,figsize=(16,16))
+    np.random.seed(42)
+    gcs = np.random.randint(0, 648, size=16)
+    k = 0
+    ens_memb = 21
+    for i in range(4):
+        for j in range(4):
+            q1 = dpa_ens_mean_quantiles_pre[:,gcs[k]].detach().numpy()
+            q2 = quantiles_fact_true[:,gcs[k]].detach().numpy()
+            q11 = quantiles_fact_dpa[:,ens_memb,gcs[k]].detach().numpy()
+            q12 = quantiles_fact_dpa_mean[:,gcs[k]].detach().numpy()
+
+            
+            ax[i, j].scatter(q1, q2, alpha=1.0, linewidths=0.2, label = "DPA Ens mean", marker = '.')
+            ax[i, j].scatter(q11, q2, alpha=1.0, linewidths=0.5, label = "DPA Ens member 21", marker = 'x')
+            ax[i, j].scatter(q12, q2, alpha=1.0, linewidths=0.5, label = "DPA Quantiles Ens mean", marker = 'x')
+
+            ax[i, j].plot([q1.min(), q1.max()], [q1.min(), q1.max()], 'r--', label='1:1 line')
+            ax[i, j].set_ylabel("Truth quantiles")
+            ax[i, j].set_xlabel("Model quantiles")
+            ax[i, j].grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+
+            # Annotate upper-left corner with grid-cell ID
+            ax[i, j].text(
+                        0.02, 0.95,                         # position (in axes fraction)
+                        f"Grid cell {gcs[k]}",              # text
+                        transform=ax[i, j].transAxes,       # coordinates relative to axes
+                        fontsize=10,
+                        fontweight="bold",
+                        va="top",
+                        ha="left",
+                        bbox=dict(facecolor="white", alpha=0.6, edgecolor="none", pad=1)
+                        )
+            
+            
+            k += 1
+    fig.suptitle("Factual Q–Q Plots of DPA Ensemble Mean vs Truth (16 Random Grid Cells)", fontsize=16) #y=0.92)
+    plt.legend()
+    plt.tight_layout()
+    fig.savefig(f"{save_path_eth}/quantiles/factual_Q-Q_plot_of_dpa_ens_mean_single_grid_cells.png")
+    
     ######################################################################################################################
 
+    ### Counterfactual ###
+    ######################
 
-    
+    ### TRUTH ###########################################################################################################
+    # compute quantiles along 0th (time) dimension
+    quantiles_cf_true = torch.quantile(eth_cf_1300_test_reduced, q=quantiles, dim=0)
+    print("quantiles shape:", quantiles_cf_true.shape)
 
-    
-    
+    # compute spatial mean 
+    quantiles_cf_true_spat_mean = quantiles_cf_true.mean(dim=1)
 
-    
-    sys.exit()
-    
-    # ensemble mean
-    quantiles_fact_dpa_ens_mean = quantiles_fact_dpa.mean(dim=1)
     # plot a quantile
-    quantiles_fact_dpa_restored = ut.restore_nan_columns(quantiles_fact_dpa_ens_mean[2,:], mask_x_te)
-    quantiles_fact_dpa_restored_xr = ut.torch_to_dataarray(quantiles_fact_dpa_restored, ds_test_eth_fact)
-    fig, ax = ut.plot_map(quantiles_fact_dpa_restored_xr, np.linspace(2,6,21), cmap="YlOrRd", cmap_label = "Autocorrelation")
-    fig.savefig(f"{save_path_eth}/075_quantile_dpa_ens_mean.png")
+    quantiles_cf_restored = ut.restore_nan_columns(quantiles_cf_true[2,:], mask_x_te)
+    quantiles_cf_restored_xr = ut.torch_to_dataarray(quantiles_cf_restored, ds_test_eth_fact)
+    fig, ax = ut.plot_map(quantiles_cf_restored_xr, np.linspace(2,6,21), cmap="YlOrRd", cmap_label = "Autocorrelation")
+    #fig.savefig(f"{save_path_eth}/quantiles/counterfactual_075_quantile_truth.png")
+    ######################################################################################################################
 
-    
-    
-    
-    # scatterplot to compare quantiles
-    fig, ax = plt.subplots(figsize=(10,8))
-    ax.scatter(range(648), quantiles_fact_true[2, :], marker='x', label="True quantiles", alpha=0.7)
-    ax.scatter(range(648), quantiles_fact_dpa_ens_mean[2, :], marker='x', label="DPA ensemble mean", alpha=0.7)
-    
-    ax.set_xlabel("Feature index")
-    ax.set_ylabel("Quantile value (0.75)")
-    ax.set_title("Comparison of 0.75 Quantiles: Truth vs DPA Ensemble Mean")
-    ax.legend()
-    
-    fig.tight_layout()
-    fig.savefig(f"{save_path_eth}/075_quantile_scatter_comparison.png", dpi=300)
-    plt.close(fig)
+    # DISTINCT members ###
+    ######################
+    dpa_1300_cf_raw_pt = torch.from_numpy(dpa_1300_cf_raw.values) # turn into pytorch array
+    # quantiles
+    quantiles_cf_dpa = torch.quantile(dpa_1300_cf_raw_pt, q=quantiles, dim=1)
+    print("DPA quantiles shape:", quantiles_fact_dpa.shape)
 
-    # scatterplot to compare quantiles
-    fig, ax = plt.subplots(figsize=(10,8))
-    ax.scatter(range(648), quantiles_fact_dpa_ens_mean[2, :] - quantiles_fact_true[2, :], marker='x', label="Quantile differences (DPA-true)", alpha=0.7)
-    
-    ax.set_xlabel("Feature index")
-    ax.set_ylabel("Quantile value (0.75)")
-    ax.set_title("Difference of 0.75 Quantiles: Truth vs DPA Ensemble Mean")
-    ax.legend()
-    
-    fig.tight_layout()
-    fig.savefig(f"{save_path_eth}/075_quantile_scatter_difference.png", dpi=300)
-    plt.close(fig)
+    # DISTINCT MEMBERS + MEAN over ens members and locations
+    quantiles_cf_dpa_mean = quantiles_cf_dpa.mean(dim=(1))
+    print(quantiles_cf_dpa_mean.shape)
+    quantiles_cf_dpa_mean_spat_mean = quantiles_cf_dpa_mean.mean(dim=(1))
+
+    # DIFFERENCE DPA quantiles and true quantiles
+    quantile_diffs_ens_cf = torch.abs(quantiles_cf_dpa - quantiles_cf_true.unsqueeze(1))
+
+    # difference: mean over ensemble members and locations (grid-cells)
+    # the absolute errors of the sampled vs. true RCM’s quantiles are averaged across all locations
+    quantile_diffs_ens_mean_cf = quantile_diffs_ens_cf.mean(dim=(1,2)) # absolute errors averaged across ensemble members and locations
+    print("quantile diffs shape", quantile_diffs_ens_cf.shape)
+    log_print(log_file, f"Counterfactual mean quantile differences (across all quantiles): {quantile_diffs_ens_mean_cf.mean()}") # absolute errors averaged over quantiles
+    log_print(log_file, f"Counterfactual 0.05-quantile differences: {quantile_diffs_ens_mean_cf[1]}") # absolute errors of 0.05 quantile
 
 
+    # Sort both datasets
+    q1 = quantiles_cf_dpa_mean_spat_mean.detach().numpy()
+    q2 = quantiles_cf_true_spat_mean.detach().numpy()
     
     
-    
-    sys.exit()
+    # Plot Mean of Quantiles 
+    fig, ax = plt.subplots(figsize=(8,8))
 
+    ax.scatter(q1, q2, alpha=0.7, linewidths=0.2)
+    ax.plot([q1.min(), q1.max()], [q1.min(), q1.max()], 'r--', label='1:1 line')
+    ax.set_ylabel("Truth quantiles")
+    ax.set_xlabel("Model quantiles")
+    ax.set_title("Counterfactual Q–Q Plot: Truth vs Mean of Ensemble quantiles spatial mean")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+    fig.savefig(f"{save_path_eth}/quantiles/counterfactual_Q-Q_plot_mean_of_quantiles_spatial_mean.png")
+
+
+    # Quantiles of DPA ENSEMBLE MEAN ####
+    #####################################
+    # compute ensemble mean
+    dpa_1300_cf_raw_ens_mean_pt = dpa_1300_cf_raw_pt.mean(dim=0)
+    print(dpa_1300_cf_raw_ens_mean_pt.shape)
+    
+    # compute quantiles 
+    dpa_ens_mean_quantiles_pre_cf = (torch.quantile(dpa_1300_cf_raw_ens_mean_pt, q=quantiles, dim=0))
+    dpa_ens_mean_quantiles_spat_mean_cf = dpa_ens_mean_quantiles_pre_cf.mean(dim=1)
+    print(dpa_ens_mean_quantiles_spat_mean_cf.shape)
+    
+    # Plot quantiles of DPA ensemble mean for spatial domain average 
+    q1 = dpa_ens_mean_quantiles_spat_mean_cf.detach().numpy()
+    q2 = quantiles_cf_true_spat_mean.detach().numpy()
+    
+    fig, ax = plt.subplots(figsize=(8,8))
+
+    ax.scatter(q1, q2, alpha=0.7, linewidths=0.2)
+    ax.plot([q1.min(), q1.max()], [q1.min(), q1.max()], 'r--', label='1:1 line')
+    ax.set_ylabel("Truth quantiles")
+    ax.set_xlabel("Model quantiles")
+    ax.set_title("Counterfactual Q–Q Plot: Truth vs DPA Ensemble mean quantiles spatial mean")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+    fig.savefig(f"{save_path_eth}/quantiles/counterfactual_Q-Q_plot_of_dpa_ens_mean_spatial_mean.png")
+
+    
+    # ENSEMBLE MEAN + SINGLE GRID CELLS ###
+    # plot true against quantiles of ensemble mean 
+    
+    
+    # Plot: Q-Q of different grid cells 
+    fig, ax = plt.subplots(4,4,figsize=(16,16))
+    np.random.seed(42)
+    gcs = np.random.randint(0, 648, size=16)
+    k = 0
+    ens_memb = 21
+    for i in range(4):
+        for j in range(4):
+            q1 = dpa_ens_mean_quantiles_pre_cf[:,gcs[k]].detach().numpy()
+            q2 = quantiles_cf_true[:,gcs[k]].detach().numpy()
+            q11 = quantiles_cf_dpa[:,ens_memb,gcs[k]].detach().numpy()
+            q12 = quantiles_cf_dpa_mean[:,gcs[k]].detach().numpy()
+
+            
+            ax[i, j].scatter(q1, q2, alpha=1.0, linewidths=0.2, label = "DPA Ens mean", marker = '.')
+            ax[i, j].scatter(q11, q2, alpha=1.0, linewidths=0.5, label = "DPA Ens member 21", marker = 'x')
+            ax[i, j].scatter(q12, q2, alpha=1.0, linewidths=0.5, label = "DPA Quantiles Ens mean", marker = 'x')
+
+            ax[i, j].plot([q1.min(), q1.max()], [q1.min(), q1.max()], 'r--', label='1:1 line')
+            ax[i, j].set_ylabel("Truth quantiles")
+            ax[i, j].set_xlabel("Model quantiles")
+            ax[i, j].grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+
+            # Annotate upper-left corner with grid-cell ID
+            ax[i, j].text(
+                        0.02, 0.95,                         # position (in axes fraction)
+                        f"Grid cell {gcs[k]}",              # text
+                        transform=ax[i, j].transAxes,       # coordinates relative to axes
+                        fontsize=10,
+                        fontweight="bold",
+                        va="top",
+                        ha="left",
+                        bbox=dict(facecolor="white", alpha=0.6, edgecolor="none", pad=1)
+                        )
+            
+            
+            k += 1
+    fig.suptitle("Counterfactual Q–Q Plots of DPA Ensemble Mean vs Truth (16 Random Grid Cells)", fontsize=16) #y=0.92)
+    plt.legend()
+    plt.tight_layout()
+    fig.savefig(f"{save_path_eth}/quantiles/counterfactual_Q-Q_plot_of_dpa_ens_mean_single_grid_cells.png")
+    
+    
     ########################
     ### Autocorrelations ###
     ########################
@@ -323,7 +495,7 @@ def main():
     print("autocorrelation differene shape:", autocorr_diff.shape)
     autocorr_diff_ens_mean = autocorr_diff.mean(dim=0)
     autocorr_diff_ens_mean_spat_mean = autocorr_diff_ens_mean.mean()
-    log_print(log_file, f"Spatial mean autocorrelation difference: {autocorr_diff_ens_mean_spat_mean}")
+    log_print(log_file, f"Spatial mean factual autocorrelation difference: {autocorr_diff_ens_mean_spat_mean}")
     ###################################################
 
     autocorr_restored = ut.restore_nan_columns(autocorr_diff_ens_mean, mask_x_te)

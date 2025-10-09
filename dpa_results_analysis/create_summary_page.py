@@ -48,4 +48,47 @@ def summary(path_eth, save_path, period):
         c.drawImage(img, x, y, width=cell_width, height=cell_height,
                         preserveAspectRatio=True, anchor='c')
     
+    c.showPage()
+
+
+    images_p2 = [f"{path_eth}/quantiles/factual_Q-Q_plot_of_dpa_ens_mean_single_grid_cells.png", f"{path_eth}/quantiles/counterfactual_Q-Q_plot_of_dpa_ens_mean_single_grid_cells.png"]
+    
+    ncols, nrows = 2, 1 
+    cell_width = page_width / ncols
+    cell_height = page_height / nrows
+    
+    for i, img in enumerate(images_p2):
+        print(i)
+        row = i // ncols
+        col = i % ncols
+        x = col * cell_width
+        y = page_height - (row + 1) * cell_height
+        #if i in [13]:
+        #    continue
+        #else:
+        c.drawImage(img, x, y, width=cell_width, height=cell_height,
+                        preserveAspectRatio=True, anchor='c')
+
+    c.showPage()
+
+
+    images_p3 = [f"{path_eth}/quantiles/factual_Q-Q_plot_of_dpa_ens_mean_spatial_mean.png", f"{path_eth}/quantiles/factual_Q-Q_plot_mean_of_quantiles_spatial_mean.png", f"{path_eth}/quantiles/counterfactual_Q-Q_plot_of_dpa_ens_mean_spatial_mean.png", f"{path_eth}/quantiles/counterfactual_Q-Q_plot_mean_of_quantiles_spatial_mean.png"]
+    
+    ncols, nrows = 2, 2 
+    cell_width = page_width / ncols
+    cell_height = page_height / nrows
+    
+    for i, img in enumerate(images_p3):
+        print(i)
+        row = i // ncols
+        col = i % ncols
+        x = col * cell_width
+        y = page_height - (row + 1) * cell_height
+        #if i in [13]:
+        #    continue
+        #else:
+        c.drawImage(img, x, y, width=cell_width, height=cell_height,
+                        preserveAspectRatio=True, anchor='c')
+    
+    
     c.save()

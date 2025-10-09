@@ -206,10 +206,13 @@ def create_ensemble(ensemble_type,
                    ):
     # load data
     if ensemble_type == "LE":
-        z500_test, z500_train, mask, ds_train, ds_test, x_te_reduced = load_test_data()
+        #z500_test, z500_train, mask, ds_train, ds_test, x_te_reduced = load_test_data()
+        z500_test, z500_train, mask, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced = load_test_data()
 
     elif ensemble_type == "ETH":
-        z500_test, mask, ds_test, x_te_reduced, x_te_reduced_cf = load_eth_test_data() # x_te_reduced is x_te_reduced_eth_fact
+        z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf = load_eth_test_data()
+        #z500_test, mask, ds_test, x_te_reduced, x_te_reduced_cf = load_eth_test_data() # x_te_reduced is x_te_reduced_eth_fact
+        
         # z500_standardized, mask_x_te_eth_fact, ds_test_eth_fact, x_te_reduced_eth_fact, x_te_reduced_eth_cf
     print("Data loaded")
     # create model
@@ -256,7 +259,8 @@ def create_ensemble(ensemble_type,
             gen_te_cf = model_dec(model_pred(z500_test_cf.to(device)))
             torch.save(gen_te_cf, f"{save_path}/cf_gen{i}_te.pt")
 
-    
+    if ensemble_type == "ETH":
+        ds_train = "no ds_train present"
 
     return mask, ds_train, ds_test, x_te_reduced
 
