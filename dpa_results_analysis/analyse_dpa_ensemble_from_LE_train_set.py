@@ -19,6 +19,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import matplotlib.patches as mpatches
 import shutil
+import argparse
 
 import sys
 sys.path.append('/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder')
@@ -26,14 +27,46 @@ import dpa_ensemble as de
 import utils as ut
 import evaluation
 
+def get_parser():
+    """Return an argument parser for this module."""
+    parser = argparse.ArgumentParser(description="Analyse DPA ensemble from LE train set")
+    parser.add_argument("--period_start", type=int, required=True, help="Start year")
+    parser.add_argument("--period_end", type=int, required=True, help="End year")
+    parser.add_argument("--ens_members", type=int, default=100, help="Number of ensemble members")
+    parser.add_argument("--save_path_le", type=str, required=True, help="Save path for analysis figures")
+    parser.add_argument("--ensemble_path", type=str, help="Path of DPA ensemble")
+    parser.add_argument("--no_epochs", type=int, help="Number of epochs")
+    return parser
+    
+def main(args=None):
 
-def main():
+
+    #######################
+    ### INPUT ARGUMENTS ###
+    #######################
+    #parser = argparse.ArgumentParser(description="Example script with arguments")
+
+    # Define arguments
+    #parser.add_argument("--period_start", type=int, help="Start year of period to analyse")
+    #parser.add_argument("--period_end", type=int, help="End year of period to analyse")
+    #parser.add_argument("--ensemble_path", type=str, default=10, help="Path of DPA ensemble")
+    #parser.add_argument("--no_epochs", type=int, help="Number of epochs model was trained used for creating this DPA ensemble")
+    
+
+    #args = parser.parse_args()
+
+    
+    save_path_le = f"ETH_analysis_results/final_analysis_train_LE/model_trained_for_{args.no_epochs}_epochs/"
+    os.makedirs(save_path_le, exist_ok=True)
+
     # settings
     # plotting settings
     title_fontsize = 18
     figsize_map = (8,6)
     figsize_ts = (10,8)
-    time_period = ["1850", "2100"]
+    
+    #time_period = ["1850", "2100"]
+    time_period = [str(args.period_start), str(args.period_end)]
 
     # years for time series plotting
     years = ["1920", "1940", "1960", "1980", "2000", "2020", "2040", "2060"]#, "2000", "2020", "2040", "2060"]
@@ -53,7 +86,7 @@ def main():
 
     # dpa ensemble for one grid cell list[(time steps,1), (time steps,1), ...]
     # this is the reconstructed array containing 1024 grid cells (many with NaNs)
-    _, dpa_list, _, _, _ = ut.load_dpa_arrays(path="/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/train_set_ensemble_after_30_epochs/",
+    _, dpa_list, _, _, _ = ut.load_dpa_arrays(path=f"{args.ensemble_path}/train_set_ensemble_after_{args.no_epochs}_epochs/",
                                   mask = mask_x_te,
                                   ds_coords = ds_train,
                                   ens_members=ens_members)
@@ -61,7 +94,7 @@ def main():
     print("DPA tensor list element shape:", dpa_list[0].shape) # list elements contain all timesteps 14307 (3 x 4769)
 
     
-    if False:
+    if True:
         e_loss_array = torch.zeros(3,648)
         for i in range(648):
             # keep only subset of tensors in list
@@ -80,10 +113,10 @@ def main():
         
 
         # save e_loss:
-        #torch.save(e_loss_array, "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/train_set_ensemble_after_30_epochs/train_e_loss_spatial.pt")
+        torch.save(e_loss_array, f"{args.ensemble_path}/train_set_ensemble_after_{args.no_epochs}_epochs/train_e_loss_spatial.pt")
         
     # load e_loss array:
-    e_loss_array = torch.load("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/train_set_ensemble_after_30_epochs/train_e_loss_spatial.pt")
+    #e_loss_array = torch.load("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/train_set_ensemble_after_30_epochs/train_e_loss_spatial.pt")
 
     print("E Loss shape:", e_loss_array.shape)
     print("type mask:", type(mask_x_te))
@@ -113,19 +146,19 @@ def main():
     # plot energy score
     fig, ax = ut.plot_map(e_loss_xr, energy_levels, cmap="YlOrRd", cmap_label = "Energy Loss")
     ax.set_title("Train Set Energy Loss", fontsize=title_fontsize)
-    fig.savefig("ETH_analysis_results/final_analysis_train_LE/LE_train_set_energy_loss_map.png")
+    fig.savefig(f"{save_path_le}LE_train_set_energy_loss_map.png")
     plt.show()
 
     # plot S1 loss
     fig, ax = ut.plot_map(s1_loss_xr, levels, cmap="YlOrRd", cmap_label = "Reconstruction Loss (S1)")
     ax.set_title("Train Set S1 Loss", fontsize=title_fontsize)
-    fig.savefig("ETH_analysis_results/final_analysis_train_LE/LE_train_set_S1_loss_map.png")
+    fig.savefig(f"{save_path_le}LE_train_set_S1_loss_map.png")
     plt.show()
 
     # plot s2 loss
     fig, ax = ut.plot_map(s2_loss_xr, levels, cmap="YlOrRd", cmap_label = "Variability Loss (S2)")
     ax.set_title("Train Set S2 Loss", fontsize=title_fontsize)
-    fig.savefig("ETH_analysis_results/final_analysis_train_LE/LE_train_set_S2_loss_map.png")
+    fig.savefig(f"{save_path_le}LE_train_set_S2_loss_map.png")
     plt.show()
 
 
@@ -148,7 +181,7 @@ def main():
             print("Energy Loss:", e_loss)
 
         # Save
-        #torch.save(e_loss_array, "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/train_set_ensemble_after_30_epochs/train_e_loss_time_resolved.pt")
+        torch.save(e_loss_array, f"{args.ensemble_path}/train_set_ensemble_after_{args.no_epochs}_epochs/train_e_loss_time_resolved.pt")
 
     #################
     ### Plot Loss ###
@@ -156,7 +189,7 @@ def main():
 
     
     ### time resolved e_loss ###
-    e_loss_pre = torch.load("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/train_set_ensemble_after_30_epochs/train_e_loss_time_resolved.pt")
+    e_loss_array = torch.load(f"{args.ensemble_path}/train_set_ensemble_after_{args.no_epochs}_epochs/train_e_loss_time_resolved.pt")
     #print("e loss shape:", e_loss_pre.shape)
 
     # create xarray from e_loss
@@ -167,7 +200,7 @@ def main():
     
     # Convert torch → numpy and wrap into xarray
     eloss_xr = xr.DataArray(
-        e_loss_pre.detach().numpy(),                     # convert to NumPy
+        e_loss_array.detach().numpy(),                     # convert to NumPy
         dims=("time", "loss"),                 # name the dimensions
         coords={
             "time": time_coord,

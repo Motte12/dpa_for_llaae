@@ -3,11 +3,11 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
 import glob
 
-def summary(path_eth, save_path, period):
-    images_new = [f"ETH_analysis_results/final_analysis_train_LE/LE_train_set_energy_loss_map.png", # 0
-              f"ETH_analysis_results/final_analysis_train_LE/LE_train_set_S1_loss_map.png", # 1
-              f"ETH_analysis_results/final_analysis_train_LE/LE_train_set_S2_loss_map.png", # 2
-              f"ETH_analysis_results/final_analysis_train_LE/all_losses.png", # 3
+def summary(path_eth, path_le, save_path, period):
+    images_new = [f"{path_le}/LE_train_set_energy_loss_map.png", # 0
+              f"{path_le}/LE_train_set_S1_loss_map.png", # 1
+              f"{path_le}/LE_train_set_S2_loss_map.png", # 2
+              f"{path_le}/all_losses.png", # 3
               f"{path_eth}/LE_Europe_Forced_response.png", # 4
               f"{path_eth}/energy_loss_map.png", # 5
               f"{path_eth}/S1_loss_map.png", # 6
@@ -23,7 +23,7 @@ def summary(path_eth, save_path, period):
               f"{path_eth}/Ger_cf_rank_hist.png", # 16
               f"{path_eth}/Sp_rank_hist.png", # 17
               f"{path_eth}/Sp_cf_rank_hist.png", # 18
-              f"ETH_analysis_results/final_analysis_train_LE/eloss_and_aerosols.png", # 19
+              f"{path_le}/eloss_and_aerosols.png", # 19
               
               
              ]

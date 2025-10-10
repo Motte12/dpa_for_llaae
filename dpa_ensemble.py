@@ -240,17 +240,17 @@ def create_ensemble(ensemble_type,
     model_pred.eval()
 
     # actually create ensemble
-    if create_factual_ensemble is True:
+    if create_factual_ensemble:
         for i in range(1, ensemble_size+1):
             gen_te = model_dec(model_pred(z500_test.to(device)))
             torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
 
-    if create_train_ensemble is True:
+    if create_train_ensemble:
         for i in range(1, ensemble_size+1):
             gen_te = model_dec(model_pred(z500_train.to(device)))
             torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
 
-    if create_counterfactual_ensemble is True:
+    if create_counterfactual_ensemble:
         # replace GMTs with 0 for counterfactual predictions
         # HERE!
         z500_test_cf = z500_test

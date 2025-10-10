@@ -21,6 +21,7 @@ import cartopy.feature as cfeature
 import matplotlib.patches as mpatches
 import shutil
 from datetime import datetime
+import argparse
 
 import sys
 import os
@@ -37,13 +38,30 @@ def log_print(log_path, message):
         print(message, file=f)  # also write to file    
 
 
-def main(): 
-    time_period = ["2000", "2050"]
+def main():
+    parser = argparse.ArgumentParser(description="Example script with arguments")
+    
+    parser.add_argument("--period_start", type=int, help="Start year of period to analyse")
+    parser.add_argument("--period_end", type=int, help="End year of period to analyse")
+    parser.add_argument("--ensemble_path", type=str, help="Path of DPA ensemble")
+    parser.add_argument("--no_epochs", type=int, help="Number of epochs model was trained used for creating this DPA ensemble")
+    parser.add_argument("--ens_members", type=int, default=100, help="Number of members in DPA ensemble")
+    parser.add_argument("--save_path_le", type=str, help="Save path of LE train set analysis figures")
+    args = parser.parse_args()
+    print(type(args))
+    
+    #time_period = ["2000", "2050"]
+    time_period = [str(args.period_start), str(args.period_end)]
+    
+    no_epochs = args.no_epochs
+    
+    ensemble_path = f"{args.ensemble_path}/eth_ensemble_after_{no_epochs}_epochs"
 
     # save path
-    save_path_eth = f"ETH_analysis_results/final_analysis_test_ETH/period_{time_period[0]}_{time_period[1]}"
+    save_path_eth = f"ETH_analysis_results/final_analysis_test_ETH/model_trained_for_{no_epochs}_epochs/period_{time_period[0]}_{time_period[1]}"
     print("save path:", save_path_eth)
-    #save_path_LE = ""
+    save_path_le = f"{args.save_path_le}/model_trained_for_{args.no_epochs}_epochs"
+    
     os.makedirs(save_path_eth, exist_ok=True)
     log_file = f"{save_path_eth}/log_metrics_{time_period[0]}-{time_period[1]}.txt"
     # Get current time and print it
@@ -79,7 +97,7 @@ def main():
     
     print("years contained", years)
     
-    ens_members=100
+    ens_members=args.ens_members
     ################
     ### Analysis ###
     ################
@@ -152,7 +170,7 @@ def main():
 
     # FACTUAL 
     # shape: ensemble_member: 100, time: 14307, lat_x_lon: 648
-    dpa_ensemble_fact_raw = xr.open_dataset("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/raw_ETH_gen_dpa_ens_100_dataset.nc")
+    dpa_ensemble_fact_raw = xr.open_dataset(f"{ensemble_path}/raw_ETH_gen_dpa_ens_{no_epochs}_dataset.nc")
     dpa_1300_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1]))
     dpa_1400_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(4769,2*4769)).sel(time=slice(time_period[0], time_period[1]))
     dpa_1500_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(-4769,14307)).sel(time=slice(time_period[0], time_period[1]))
@@ -160,19 +178,19 @@ def main():
     
 
     # shape: ensemble_member: 100, time: 14307, lat: 32, lon: 32
-    dpa_ensemble_fact_restored = xr.open_dataset("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/ETH_gen_dpa_ens_100_dataset_restored.nc")
+    dpa_ensemble_fact_restored = xr.open_dataset(f"{ensemble_path}/ETH_gen_dpa_ens_{no_epochs}_dataset_restored.nc")
     dpa_1300_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1]))
     dpa_1400_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(4769,2*4769)).sel(time=slice(time_period[0], time_period[1]))
     dpa_1500_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(-4769,14307)).sel(time=slice(time_period[0], time_period[1]))
     
 
     # COUNTERFACTUAL
-    dpa_ensemble_raw_cf = xr.open_dataset("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/raw_ETH_cf_gen_dpa_ens_100_dataset.nc")
+    dpa_ensemble_raw_cf = xr.open_dataset(f"{ensemble_path}/raw_ETH_cf_gen_dpa_ens_{no_epochs}_dataset.nc")
     dpa_1300_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1]))
     dpa_1400_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(4769,2*4769)).sel(time=slice(time_period[0], time_period[1]))
     dpa_1500_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(-4769,14307)).sel(time=slice(time_period[0], time_period[1]))
 
-    dpa_ensemble_restored_cf = xr.open_dataset("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/ETH_cf_gen_dpa_ens_100_dataset_restored.nc")
+    dpa_ensemble_restored_cf = xr.open_dataset(f"{ensemble_path}/ETH_cf_gen_dpa_ens_{no_epochs}_dataset_restored.nc")
     dpa_1300_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1]))
     dpa_1400_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(4769,2*4769)).sel(time=slice(time_period[0], time_period[1]))
     dpa_1500_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(-4769,14307)).sel(time=slice(time_period[0], time_period[1]))
@@ -546,7 +564,7 @@ def main():
 
     # dpa ensemble for one grid cell list[(time steps,1), (time steps,1), ...]
     # this is the reconstructed array containing 1024 grid cells (many with NaNs)
-    _, dpa_list, _, _, _ = ut.load_dpa_arrays(path="/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/",
+    _, dpa_list, _, _, _ = ut.load_dpa_arrays(path=f"{ensemble_path}/",
                                   mask = mask_x_te,
                                   ds_coords = ds_test_eth_fact,
                                   ens_members=ens_members)
@@ -623,7 +641,7 @@ def main():
     ######################
     
     # climate_list: ["cf_gen", "gen"]
-    _, dpa_list_cf_pre, _, _, _ = ut.load_both_dpa_arrays(path="/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/",
+    _, dpa_list_cf_pre, _, _, _ = ut.load_both_dpa_arrays(path=f"{ensemble_path}/",
                                   mask = mask_x_te,
                                   ds_coords = ds_test_eth_fact,
                                   ens_members=ens_members,
@@ -722,9 +740,9 @@ def main():
             print("Energy Loss:", e_loss)
 
         # Save
-        #torch.save(e_loss_array, "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/new_e_loss_over_time.pt")
+        torch.save(e_loss_array, f"{ensemble_path}/e_loss_over_time.pt")
 
-    e_loss_array = torch.load("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/e_loss_over_time.pt")
+    e_loss_array = torch.load(f"{ensemble_path}/e_loss_over_time.pt")
     #print("e loss shape:", e_loss_pre.shape)
 
     # create xarray from e_loss
@@ -819,9 +837,9 @@ def main():
             print("Energy Loss:", e_loss)
 
         # Save
-        #torch.save(e_loss_array, "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/e_loss_over_time_cf.pt")
+        torch.save(e_loss_array, f"{ensemble_path}/e_loss_over_time_cf.pt")
 
-    e_loss_array = torch.load("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/eth_ensemble_after_30_epochs/e_loss_over_time_cf.pt")
+    e_loss_array = torch.load(f"{ensemble_path}/e_loss_over_time_cf.pt")
     #print("e loss shape:", e_loss_pre.shape)
 
     # create xarray from e_loss
@@ -1549,13 +1567,13 @@ def main():
     ### RUN LE TRAIN DATA SCRIPT ###
     ################################
 
-    analyse_dpa_ensemble_from_LE_train_set.main() 
+    analyse_dpa_ensemble_from_LE_train_set.main(args) 
 
     ###########################
     ### CREATE SUMMARY PAGE ###
     ###########################
     
-    create_summary_page.summary(path_eth=save_path_eth, save_path=save_path_eth, period=f"{time_period[0]}-{time_period[1]}")
+    create_summary_page.summary(path_eth=save_path_eth, path_le=save_path_le, save_path=save_path_eth, period=f"{time_period[0]}-{time_period[1]}")
     
 
 
