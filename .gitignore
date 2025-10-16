@@ -1,5 +1,12 @@
 # Initially taken from Github's Python gitignore file
 
+# Result files
+*.pdf
+
+
+# Pytorch models
+*.pt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

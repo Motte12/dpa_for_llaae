@@ -33,7 +33,7 @@ def get_parser():
     parser.add_argument("--period_start", type=int, required=True, help="Start year")
     parser.add_argument("--period_end", type=int, required=True, help="End year")
     parser.add_argument("--ens_members", type=int, default=100, help="Number of ensemble members")
-    parser.add_argument("--save_path_le", type=str, required=True, help="Save path for analysis figures")
+    #parser.add_argument("--save_path_le", type=str, required=True, help="Save path for analysis figures")
     parser.add_argument("--ensemble_path", type=str, help="Path of DPA ensemble")
     parser.add_argument("--no_epochs", type=int, help="Number of epochs")
     return parser
@@ -54,9 +54,15 @@ def main(args=None):
     
 
     #args = parser.parse_args()
+    parser = get_parser()
+
+    # if called as standalone script
+    if args is None:
+        args = parser.parse_args()
 
     
     save_path_le = f"ETH_analysis_results/final_analysis_train_LE/model_trained_for_{args.no_epochs}_epochs/"
+    print("save path LE analysis results:", save_path_le)
     os.makedirs(save_path_le, exist_ok=True)
 
     # settings
@@ -114,9 +120,9 @@ def main(args=None):
 
         # save e_loss:
         torch.save(e_loss_array, f"{args.ensemble_path}/train_set_ensemble_after_{args.no_epochs}_epochs/train_e_loss_spatial.pt")
-        
-    # load e_loss array:
-    #e_loss_array = torch.load("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_30epochs/train_set_ensemble_after_30_epochs/train_e_loss_spatial.pt")
+    else:
+        # load e_loss array:
+        e_loss_array = torch.load(f"{args.ensemble_path}/train_set_ensemble_after_{args.no_epochs}_epochs/train_e_loss_spatial.pt")
 
     print("E Loss shape:", e_loss_array.shape)
     print("type mask:", type(mask_x_te))
@@ -164,7 +170,7 @@ def main(args=None):
 
     # now transpose (switch i and :) everything to calculate scores over time i.e. for each map
     
-    if False:
+    if True:
     
         #sys.exit()
         e_loss_array = torch.zeros(dpa_list[0].shape[0], 3)
@@ -187,9 +193,9 @@ def main(args=None):
     ### Plot Loss ###
     #################
 
-    
-    ### time resolved e_loss ###
-    e_loss_array = torch.load(f"{args.ensemble_path}/train_set_ensemble_after_{args.no_epochs}_epochs/train_e_loss_time_resolved.pt")
+    else:
+        ### time resolved e_loss ###
+        e_loss_array = torch.load(f"{args.ensemble_path}/train_set_ensemble_after_{args.no_epochs}_epochs/train_e_loss_time_resolved.pt")
     #print("e loss shape:", e_loss_pre.shape)
 
     # create xarray from e_loss
@@ -287,7 +293,7 @@ def main(args=None):
     
     # Save figure
     plt.tight_layout()
-    fig.savefig("ETH_analysis_results/final_analysis_train_LE/eloss_and_aerosols.png", dpi=300)
+    fig.savefig(f"{save_path_le}eloss_and_aerosols.png", dpi=300)
     plt.show()
 
 
@@ -327,7 +333,7 @@ def main(args=None):
     
     # Optimize layout and save
     plt.tight_layout()
-    fig.savefig("ETH_analysis_results/final_analysis_train_LE/all_losses.png", dpi=300)
+    fig.savefig(f"{save_path_le}all_losses.png", dpi=300)
     plt.show()
         
 

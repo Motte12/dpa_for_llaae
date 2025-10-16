@@ -3,8 +3,8 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
 import glob
 
-def summary(path_eth, path_le, save_path, period):
-    images_new = [f"{path_le}/LE_train_set_energy_loss_map.png", # 0
+def summary(path_eth, path_le, save_path, period, include_train_analysis=1):
+    images_new_pre = [f"{path_le}/LE_train_set_energy_loss_map.png", # 0
               f"{path_le}/LE_train_set_S1_loss_map.png", # 1
               f"{path_le}/LE_train_set_S2_loss_map.png", # 2
               f"{path_le}/all_losses.png", # 3
@@ -28,7 +28,15 @@ def summary(path_eth, path_le, save_path, period):
               
              ]
 
+    print("Images:", images_new_pre)
+        
+    if not include_train_analysis:
+        images_new = [x for x in images_new_pre if "LE" not in x]
+    else:
+        images_new = images_new_pre
 
+    print("Images:", images_new)
+    
     c = canvas.Canvas(f"{save_path}/{period}_evaluation_combined.pdf", pagesize=landscape(A2))
     page_width, page_height = landscape(A2)
     

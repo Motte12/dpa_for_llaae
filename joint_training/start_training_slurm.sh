@@ -1,6 +1,5 @@
 #!/bin/bash
 #SBATCH --job-name=dpa-tuning
-#SBATCH --output=/work/fl53wumy-llaae_data_new/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/slurm-train_prelim_model.out
 #SBATCH --partition=clara
 #SBATCH --gpus=v100:1
 #SBATCH --cpus-per-task=1
@@ -16,7 +15,7 @@ hdn=50
 nln=6
 ndd=5
 hdl=50
-ndl=100
+ndl=20
 lambd=0.5
 bs=128
 epochs=300
@@ -24,7 +23,7 @@ epochs=300
 # 3.1) Echo for debugging
 echo "TASK ${SLURM_ARRAY_TASK_ID} → latent_dim=$ld, encoder=$enc, hidden_dim_NN=$hdn, num_layers_NN=$nln, noise_dim_dec=$ndd, hidden_dim_lm=$hdl, noise_dim_lm=$ndl, lambda=$lambd"
 
-~/.conda/envs/dpa/bin/python train_joint_dpa_automated.py \
+~/.conda/envs/dpa/bin/python train_dpa_ae_only.py \
     --settings_file dpa_train_settings.json \
     --encoder "$enc" \
     --in_dim 648 \

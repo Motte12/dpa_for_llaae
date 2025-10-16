@@ -33,16 +33,16 @@ import dpa_ensemble as de
 import utils as ut
 import evaluation
 
-def main
+def main():
     parser = argparse.ArgumentParser(description="Example script with arguments")
 
     # Define arguments
     parser.add_argument("--ens_members", type=int, help="Number of ensemble members to create")
     parser.add_argument("--save_path_ensemble_single", type=str, help="path for saving single ens members")
     parser.add_argument("--model_path", type=str, help="path to DPA model components")
-    parser.add_argument("--encoder", type=str, help="encoder filename")
-    parser.add_argument("--decoder", type=str, help="decoder filename")
-    parser.add_argument("--latent_map", type=str, help="latent_map filename")
+    parser.add_argument("--encoder_model", type=str, help="encoder filename")
+    parser.add_argument("--decoder_model", type=str, help="decoder filename")
+    parser.add_argument("--latent_map_model", type=str, help="latent_map filename")
     parser.add_argument("--no_epochs", type=int, help="Number of epochs")
 
       # --- Encoder and model structure ---
@@ -141,7 +141,7 @@ def main
                                     ensemble_size=ens_members,
                                     save_path=save_path_ensemble_single,
                                     device=device,
-                                    encoder="learnable",
+                                    encoder=encoder,
                                     in_dim=in_dim,
                                     latent_dim=latent_dim,
                                     num_layers=num_layers,
@@ -154,9 +154,9 @@ def main
                                     num_layers_lm=num_layers_lm,
                                     hidden_dim_lm=hidden_dim,
                                     noise_dim_lm=noise_dim_lm,
-                                    encoder_path=f"{args.model_path}/{args.encoder}",
-                                    decoder_path=f"{args.model_path}/{args.decoder}",
-                                    lm_path=f"{args.model_path}/{args.latent_map}",
+                                    encoder_path=f"{args.model_path}/{args.encoder_model}",
+                                    decoder_path=f"{args.model_path}/{args.decoder_model}",
+                                    lm_path=f"{args.model_path}/{args.latent_map_model}",
                                     create_train_ensemble=True
                                     )
 
@@ -166,7 +166,9 @@ def main
                                                                     mask=mask,
                                                                     ds_coords=ds_train,
                                                                     ens_members=ens_members,
-                                                                    save_path=f"{save_path_ensemble_single}")
+                                                                    save_path=f"{save_path_ensemble_single}",
+                                                                    no_epochs=args.no_epochs
+                                                                    )
 
 if __name__ == "__main__":
     main()

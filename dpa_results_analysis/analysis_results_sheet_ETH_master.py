@@ -41,40 +41,69 @@ def log_print(log_path, message):
 def main():
     parser = argparse.ArgumentParser(description="Example script with arguments")
     
+    parser.add_argument("--include_train_analysis", type=int, default=1, help="Whether to include analysis of train data.")
     parser.add_argument("--period_start", type=int, help="Start year of period to analyse")
     parser.add_argument("--period_end", type=int, help="End year of period to analyse")
     parser.add_argument("--ensemble_path", type=str, help="Path of DPA ensemble")
     parser.add_argument("--no_epochs", type=int, help="Number of epochs model was trained used for creating this DPA ensemble")
     parser.add_argument("--ens_members", type=int, default=100, help="Number of members in DPA ensemble")
     parser.add_argument("--save_path_le", type=str, help="Save path of LE train set analysis figures")
+    parser.add_argument("--save_path_eth", type=str, help="Save path of ETH set analysis figures")
+
     args = parser.parse_args()
-    print(type(args))
+    #print(type(args))
     
     #time_period = ["2000", "2050"]
     time_period = [str(args.period_start), str(args.period_end)]
     
     no_epochs = args.no_epochs
     
-    ensemble_path = f"{args.ensemble_path}/eth_ensemble_after_{no_epochs}_epochs"
+    ensemble_path = f"{args.ensemble_path}eth_ensemble_after_{no_epochs}_epochs"
 
     # save path
-    save_path_eth = f"ETH_analysis_results/final_analysis_test_ETH/model_trained_for_{no_epochs}_epochs/period_{time_period[0]}_{time_period[1]}"
-    print("save path:", save_path_eth)
-    save_path_le = f"{args.save_path_le}/model_trained_for_{args.no_epochs}_epochs"
+    if args.save_path_le is not None:
+        print("save path LE is given")
+        save_path_le = args.save_path_le
+    else:
+        print("save path LE is not given")
+        save_path_le = f"ETH_analysis_results/final_analysis_train_LE/model_trained_for_{args.no_epochs}_epochs"
+        
+
+    if args.save_path_eth is not None:
+        print("save path eth is given")
+        save_path_eth = f"{args.save_path_eth}/period_{time_period[0]}_{time_period[1]}"
+    else:
+        print("save path eth is not given")
+        save_path_eth = f"ETH_analysis_results/final_analysis_test_ETH/model_trained_for_{args.no_epochs}_epochs/period_{time_period[0]}_{time_period[1]}"
+
+        
+
+    print("save path ETH analysis results:", save_path_eth)
+    print("save path LE analysis results:", save_path_le)
+    print("include LE train analysis:", args.include_train_analysis)
+    print("ensemble load path:", ensemble_path)
+    
+    #create_summary_page.summary(path_eth=save_path_eth, path_le=save_path_le, save_path=save_path_eth, period=f"{time_period[0]}-{time_period[1]}", include_train_analysis=0)
     
     os.makedirs(save_path_eth, exist_ok=True)
+    os.makedirs(save_path_le, exist_ok=True)
+
+    
     log_file = f"{save_path_eth}/log_metrics_{time_period[0]}-{time_period[1]}.txt"
     # Get current time and print it
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_print(log_file, f"=== Current Time: {current_time} ===")
 
-    # create germany and spain subdirs
+
+    print(f"{save_path_eth}/Germany")
+    print(f"{save_path_eth}/Spain")
+    
+    # create germany and spain subdirs––±
     os.makedirs(f"{save_path_eth}/Germany", exist_ok=True)
     os.makedirs(f"{save_path_eth}/Spain", exist_ok=True)
     os.makedirs(f"{save_path_eth}/quantiles", exist_ok=True)
     
-    print(f"{save_path_eth}/Germany")
-    print(f"{save_path_eth}/Spain")
+    
     
     
     # plotting settings
@@ -95,7 +124,7 @@ def main():
     # Filter years that fall within the range
     years = [y for y in map(int, years) if start <= y <= end]
     
-    print("years contained", years)
+    #print("years contained", years)
     
     ens_members=args.ens_members
     ################
@@ -105,11 +134,11 @@ def main():
     #fig, axs = plt.subplots(2, 2, figsize=(8.27, 11.69))  # 2x2 grid of subplots
 
     # load test data
-    print("Loading test data ...")
+    #print("Loading test data ...")
     
     # Large Ensemble Data
     z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced = de.load_test_data()
-    print("x_te_reduced shape:", x_te_reduced.shape)
+    #print("x_te_reduced shape:", x_te_reduced.shape)
 
     # ETH Ensemble Test data
     z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf = de.load_eth_test_data()
@@ -118,16 +147,16 @@ def main():
     # ds_test_eth_fact      -> factual test temperatures (xarray dataset) lat: 32, lon: 32, time: 14307
     # x_te_reduced_eth_fact -> land grid cells factual temperature data
     # x_te_reduced_eth_cf   -> land grid cells counterfactual temperature data
-    print("x_te_reduced_eth_fact:", x_te_reduced_eth_fact.shape)
+    #print("x_te_reduced_eth_fact:", x_te_reduced_eth_fact.shape)
 
     # datasets
     ds_test_1300_eth_fact = ds_test_eth_fact.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1])) # HERE TP
-    print("ds_test_1300_eth_fact:", ds_test_1300_eth_fact)
+    #print("ds_test_1300_eth_fact:", ds_test_1300_eth_fact)
     ds_test_1300_eth_cf = ds_test_eth_cf.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1])) # HERE TP
 
     # get indices of time slices
     time_index = ds_test_eth_fact.TREFHT.isel(time=slice(0, 4769)).get_index("time")
-    print("Time index:", time_index)
+    #print("Time index:", time_index)
     indices = time_index.get_indexer(ds_test_1300_eth_fact.time.values)
     start_idx, end_idx = indices[0], indices[-1]+1 # add 1 to include last index
     #if time_period[-1] == "2100":
@@ -142,7 +171,9 @@ def main():
     #print(ds_test_eth_fact.TREFHT.isel(time=slice(0, 4769)).time[end_idx])
 
     
-
+    ######################
+    ### Load Test Data ###
+    ######################
     
     # PYTORCH arrays
     # Factual Test/True temperatures
@@ -159,7 +190,9 @@ def main():
     eth_cf_1500_test_reduced = x_te_reduced_eth_cf[-4769:14307,:][start_idx:end_idx,:]
     print("eth_fact_1300_test_reduced counterfactual shape:", eth_cf_1300_test_reduced.shape)
     
-    # load DPA ensemble
+    #########################
+    ### Load DPA Ensemble ###
+    #########################
     
     # including nan's
     #dpa_ensemble = xr.open_zarr(f"{save_path_ensemble_single}/dpa_ens_100_dataset_restored.zarr", consolidated=True)
@@ -167,14 +200,20 @@ def main():
     # RAW ensemble without NaNs
     # shape: ensemble_member: 100time: 64000lat_x_lon: 648
     print("Loading DPA ensemble ...")
+    print("DPA ensemble load paths:")
 
     # FACTUAL 
     # shape: ensemble_member: 100, time: 14307, lat_x_lon: 648
+    print(f"{ensemble_path}/raw_ETH_gen_dpa_ens_{no_epochs}_dataset.nc")
+    print(f"{ensemble_path}/ETH_gen_dpa_ens_{no_epochs}_dataset_restored.nc")
+    print(f"{ensemble_path}/raw_ETH_cf_gen_dpa_ens_{no_epochs}_dataset.nc")
+    print(f"{ensemble_path}/ETH_cf_gen_dpa_ens_{no_epochs}_dataset_restored.nc")
+    
     dpa_ensemble_fact_raw = xr.open_dataset(f"{ensemble_path}/raw_ETH_gen_dpa_ens_{no_epochs}_dataset.nc")
     dpa_1300_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1]))
     dpa_1400_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(4769,2*4769)).sel(time=slice(time_period[0], time_period[1]))
     dpa_1500_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(-4769,14307)).sel(time=slice(time_period[0], time_period[1]))
-    print("dpa_1300_fact_raw:", dpa_1300_fact_raw)
+    #print("dpa_1300_fact_raw:", dpa_1300_fact_raw)
     
 
     # shape: ensemble_member: 100, time: 14307, lat: 32, lon: 32
@@ -212,7 +251,7 @@ def main():
     ### TRUTH ###########################################################################################################
     # compute quantiles along 0th (time) dimension
     quantiles_fact_true = torch.quantile(eth_fact_1300_test_reduced, q=quantiles, dim=0)
-    print("quantiles shape:", quantiles_fact_true.shape)
+    #print("quantiles shape:", quantiles_fact_true.shape)
 
     # compute spatial mean 
     quantiles_fact_true_spat_mean = quantiles_fact_true.mean(dim=1)
@@ -232,11 +271,11 @@ def main():
     dpa_1300_fact_raw_pt = torch.from_numpy(dpa_1300_fact_raw.values) # turn into pytorch array
     # quantiles
     quantiles_fact_dpa = torch.quantile(dpa_1300_fact_raw_pt, q=quantiles, dim=1)
-    print("DPA quantiles shape:", quantiles_fact_dpa.shape)
+    #print("DPA quantiles shape:", quantiles_fact_dpa.shape)
 
     # DISTINCT MEMBERS + MEAN over ens members and locations
     quantiles_fact_dpa_mean = quantiles_fact_dpa.mean(dim=(1))
-    print(quantiles_fact_dpa_mean.shape)
+    #print(quantiles_fact_dpa_mean.shape)
     quantiles_fact_dpa_mean_spat_mean = quantiles_fact_dpa_mean.mean(dim=(1))
 
     # DIFFERENCE DPA quantiles and true quantiles
@@ -245,7 +284,7 @@ def main():
     # difference: mean over ensemble members and locations (grid-cells)
     # the absolute errors of the sampled vs. true RCM’s quantiles are averaged across all locations
     quantile_diffs_ens_mean = quantile_diffs_ens.mean(dim=(1,2)) # absolute errors averaged across ensemble members and locations
-    print("quantile diffs shape", quantile_diffs_ens.shape)
+    #print("quantile diffs shape", quantile_diffs_ens.shape)
     log_print(log_file, f"Factual mean quantile differences (across all quantiles): {quantile_diffs_ens_mean.mean()}") # absolute errors averaged over quantiles
     log_print(log_file, f"Factual 0.05-quantile differences: {quantile_diffs_ens_mean[1]}") # absolute errors of 0.05 quantile
 
@@ -276,12 +315,12 @@ def main():
     #####################################
     # compute ensemble mean
     dpa_1300_fact_raw_ens_mean_pt = dpa_1300_fact_raw_pt.mean(dim=0)
-    print(dpa_1300_fact_raw_ens_mean_pt.shape)
+    #print(dpa_1300_fact_raw_ens_mean_pt.shape)
     
     # compute quantiles 
     dpa_ens_mean_quantiles_pre = (torch.quantile(dpa_1300_fact_raw_ens_mean_pt, q=quantiles, dim=0))
     dpa_ens_mean_quantiles_spat_mean = dpa_ens_mean_quantiles_pre.mean(dim=1)
-    print(dpa_ens_mean_quantiles_spat_mean.shape)
+    #print(dpa_ens_mean_quantiles_spat_mean.shape)
     
     # Plot quantiles of DPA ensemble mean for spatial domain average 
     q1 = dpa_ens_mean_quantiles_spat_mean.detach().numpy()
@@ -355,7 +394,7 @@ def main():
     ### TRUTH ###########################################################################################################
     # compute quantiles along 0th (time) dimension
     quantiles_cf_true = torch.quantile(eth_cf_1300_test_reduced, q=quantiles, dim=0)
-    print("quantiles shape:", quantiles_cf_true.shape)
+    #print("quantiles shape:", quantiles_cf_true.shape)
 
     # compute spatial mean 
     quantiles_cf_true_spat_mean = quantiles_cf_true.mean(dim=1)
@@ -372,11 +411,11 @@ def main():
     dpa_1300_cf_raw_pt = torch.from_numpy(dpa_1300_cf_raw.values) # turn into pytorch array
     # quantiles
     quantiles_cf_dpa = torch.quantile(dpa_1300_cf_raw_pt, q=quantiles, dim=1)
-    print("DPA quantiles shape:", quantiles_fact_dpa.shape)
+    #print("DPA quantiles shape:", quantiles_fact_dpa.shape)
 
     # DISTINCT MEMBERS + MEAN over ens members and locations
     quantiles_cf_dpa_mean = quantiles_cf_dpa.mean(dim=(1))
-    print(quantiles_cf_dpa_mean.shape)
+    #print(quantiles_cf_dpa_mean.shape)
     quantiles_cf_dpa_mean_spat_mean = quantiles_cf_dpa_mean.mean(dim=(1))
 
     # DIFFERENCE DPA quantiles and true quantiles
@@ -385,7 +424,7 @@ def main():
     # difference: mean over ensemble members and locations (grid-cells)
     # the absolute errors of the sampled vs. true RCM’s quantiles are averaged across all locations
     quantile_diffs_ens_mean_cf = quantile_diffs_ens_cf.mean(dim=(1,2)) # absolute errors averaged across ensemble members and locations
-    print("quantile diffs shape", quantile_diffs_ens_cf.shape)
+    #print("quantile diffs shape", quantile_diffs_ens_cf.shape)
     log_print(log_file, f"Counterfactual mean quantile differences (across all quantiles): {quantile_diffs_ens_mean_cf.mean()}") # absolute errors averaged over quantiles
     log_print(log_file, f"Counterfactual 0.05-quantile differences: {quantile_diffs_ens_mean_cf[1]}") # absolute errors of 0.05 quantile
 
@@ -414,12 +453,12 @@ def main():
     #####################################
     # compute ensemble mean
     dpa_1300_cf_raw_ens_mean_pt = dpa_1300_cf_raw_pt.mean(dim=0)
-    print(dpa_1300_cf_raw_ens_mean_pt.shape)
+    #print(dpa_1300_cf_raw_ens_mean_pt.shape)
     
     # compute quantiles 
     dpa_ens_mean_quantiles_pre_cf = (torch.quantile(dpa_1300_cf_raw_ens_mean_pt, q=quantiles, dim=0))
     dpa_ens_mean_quantiles_spat_mean_cf = dpa_ens_mean_quantiles_pre_cf.mean(dim=1)
-    print(dpa_ens_mean_quantiles_spat_mean_cf.shape)
+    #print(dpa_ens_mean_quantiles_spat_mean_cf.shape)
     
     # Plot quantiles of DPA ensemble mean for spatial domain average 
     q1 = dpa_ens_mean_quantiles_spat_mean_cf.detach().numpy()
@@ -510,14 +549,14 @@ def main():
 
     # difference between ensemble members and truth ###
     autocorr_diff = autocorr_mult - autocorr
-    print("autocorrelation differene shape:", autocorr_diff.shape)
+    #print("autocorrelation differene shape:", autocorr_diff.shape)
     autocorr_diff_ens_mean = autocorr_diff.mean(dim=0)
     autocorr_diff_ens_mean_spat_mean = autocorr_diff_ens_mean.mean()
     log_print(log_file, f"Spatial mean factual autocorrelation difference: {autocorr_diff_ens_mean_spat_mean}")
     ###################################################
 
     autocorr_restored = ut.restore_nan_columns(autocorr_diff_ens_mean, mask_x_te)
-    print("autocorr_restored shape", autocorr_restored.shape)
+    #print("autocorr_restored shape", autocorr_restored.shape)
     autocorr_xr = ut.torch_to_dataarray(autocorr_restored, ds_test_eth_fact)
     fig, ax = ut.plot_map(autocorr_xr, np.linspace(-0.2,0.2,17), cmap="PuOr", cmap_label = "Autocorrelation")
     fig.savefig(f"{save_path_eth}/autocorrelation_diff_ens_mean.png")
@@ -540,14 +579,14 @@ def main():
 
     # difference between ensemble members and truth ###
     autocorr_diff_cf = autocorr_mult_cf - autocorr_cf
-    print("autocorrelation differene shape:", autocorr_diff_cf.shape)
+    #print("autocorrelation differene shape:", autocorr_diff_cf.shape)
     autocorr_diff_ens_mean_cf = autocorr_diff_cf.mean(dim=0)
     autocorr_diff_ens_mean_spat_mean_cf = autocorr_diff_ens_mean_cf.mean()
     log_print(log_file, f"Spatial mean counterfactual autocorrelation difference: {autocorr_diff_ens_mean_spat_mean_cf}")
     ###################################################
 
     autocorr_restored_cf = ut.restore_nan_columns(autocorr_diff_ens_mean_cf, mask_x_te)
-    print("autocorr_restored shape", autocorr_restored_cf.shape)
+    #print("autocorr_restored shape", autocorr_restored_cf.shape)
     autocorr_xr_cf = ut.torch_to_dataarray(autocorr_restored_cf, ds_test_eth_cf)
     fig, ax = ut.plot_map(autocorr_xr_cf, np.linspace(-0.2,0.2,17), cmap="PuOr", cmap_label = "Autocorrelation")
     fig.savefig(f"{save_path_eth}/autocorrelation_diff_ens_mean_cf.png")
@@ -568,11 +607,11 @@ def main():
                                   mask = mask_x_te,
                                   ds_coords = ds_test_eth_fact,
                                   ens_members=ens_members)
-    print("DPA tensor list:", len(dpa_list))
-    print("DPA tensor list element shape:", dpa_list[0].shape) # list elements contain all timesteps 14307 (3 x 4769)
+    #print("DPA tensor list:", len(dpa_list))
+    #print("DPA tensor list element shape:", dpa_list[0].shape) # list elements contain all timesteps 14307 (3 x 4769)
 
     
-    
+    print("Now calculating spatial energy loss ...")
     e_loss_array = torch.zeros(3,648)
     for i in range(648):
         # keep only subset of tensors in list
@@ -583,14 +622,14 @@ def main():
         e_loss_array[0,i] = e_loss[0].detach() 
         e_loss_array[1,i] = e_loss[1].detach()
         e_loss_array[2,i] = e_loss[2].detach()
-        print(i)
-        print("Energy Loss:", e_loss)
+        #print(i)
+        #print("Energy Loss:", e_loss)
 
     print("E Loss shape:", e_loss_array.shape)
     
-    print("type mask:", type(mask_x_te))
-    print("mask shape:", mask_x_te.shape)
-    print("type e loss array:", type(e_loss_array))
+    #print("type mask:", type(mask_x_te))
+    #print("mask shape:", mask_x_te.shape)
+    #print("type e loss array:", type(e_loss_array))
 
     
     # restore NaN columns
@@ -598,7 +637,7 @@ def main():
     s1_loss_restored = ut.restore_nan_columns(e_loss_array[1,:].unsqueeze(0), mask_x_te)
     s2_loss_restored = ut.restore_nan_columns(e_loss_array[2,:].unsqueeze(0), mask_x_te)
 
-    print("e_loss_restored shape:", e_loss_restored.shape)
+    #print("e_loss_restored shape:", e_loss_restored.shape)
 
     
 
@@ -611,7 +650,7 @@ def main():
     e_loss_xr = ut.torch_to_dataarray(x_tensor = e_loss_restored, coords_ds = ds_test_eth_fact, lat_dim=32, lon_dim=32, name="energy_loss_total") # add oth dimensin 
     s1_loss_xr = ut.torch_to_dataarray(x_tensor = s1_loss_restored, coords_ds = ds_test_eth_fact, lat_dim=32, lon_dim=32, name="s1_loss")
     s2_loss_xr = ut.torch_to_dataarray(x_tensor = s2_loss_restored, coords_ds = ds_test_eth_fact, lat_dim=32, lon_dim=32, name="s2_loss")
-    print("E loss xr:", e_loss_xr)
+    #print("E loss xr:", e_loss_xr)
     
     #energy_levels = np.linspace(0.4, 1.1, 7)
     #levels = np.linspace(0.8, 2.0, 13)
@@ -648,8 +687,8 @@ def main():
                                   climate_list = ["cf_gen"]
                                 )
 
-    print("DPA tensor list:", len(dpa_list_cf_pre))
-    print("DPA tensor list element shape:", dpa_list_cf_pre[0][0].shape) # list elements contain all timesteps 14307 (3 x 4769)
+    #print("DPA tensor list:", len(dpa_list_cf_pre))
+    #print("DPA tensor list element shape:", dpa_list_cf_pre[0][0].shape) # list elements contain all timesteps 14307 (3 x 4769)
 
     dpa_list_cf = dpa_list_cf_pre[0]
     
@@ -660,22 +699,23 @@ def main():
     
         ### calculate energy score ###
         e_loss = energy_loss(eth_cf_1300_test_reduced[:,i], dpa_list_subset)
-        print(e_loss)
+        #print(e_loss)
         e_loss_array[0,i] = e_loss[0].detach() 
         e_loss_array[1,i] = e_loss[1].detach()
         e_loss_array[2,i] = e_loss[2].detach()
-        print(i)
-        print("Energy Loss:", e_loss)
-
+        #print(i)
+        #print("Energy Loss:", e_loss)
+    
+    print("Spatial energy loss calculated ...")
     print("E Loss shape:", e_loss_array.shape)
     
-    print("type mask:", type(mask_x_te))
-    print("mask shape:", mask_x_te.shape)
-    print("type e loss array:", type(e_loss_array))
+    #print("type mask:", type(mask_x_te))
+    #print("mask shape:", mask_x_te.shape)
+    #print("type e loss array:", type(e_loss_array))
 
     # Check if there is any NaN at all
     has_nan = torch.isnan(e_loss_array).any()
-    print("E_Loss has any nans:", has_nan)
+    #print("E_Loss has any nans:", has_nan)
         
     # restore NaN columns
     e_loss_restored = ut.restore_nan_columns(e_loss_array[0,:].unsqueeze(0), mask_x_te)
@@ -687,14 +727,14 @@ def main():
     log_print(log_file, f"Counterfactual S1-Score spatial mean: {e_loss_array[1,:].mean()}")
     log_print(log_file, f"Counterfactual S2-Score spatial mean: {e_loss_array[2,:].mean()}")
 
-    print("e_loss_restored shape:", e_loss_restored.shape)
+    #print("e_loss_restored shape:", e_loss_restored.shape)
 
     
     # transform e_loss_array into xarray
     e_loss_xr = ut.torch_to_dataarray(x_tensor = e_loss_restored, coords_ds = ds_test_eth_fact, lat_dim=32, lon_dim=32, name="energy_loss_total") # add oth dimensin 
     s1_loss_xr = ut.torch_to_dataarray(x_tensor = s1_loss_restored, coords_ds = ds_test_eth_fact, lat_dim=32, lon_dim=32, name="s1_loss")
     s2_loss_xr = ut.torch_to_dataarray(x_tensor = s2_loss_restored, coords_ds = ds_test_eth_fact, lat_dim=32, lon_dim=32, name="s2_loss")
-    print("E loss xr:", e_loss_xr)
+    #print("E loss xr:", e_loss_xr)
     
     
     
@@ -723,8 +763,9 @@ def main():
     ###############
 
     # now transpose (switch i and :) everything to calculate scores over time i.e. for each map
-    
-    if False:
+    print("Now calculating time resolved energy loss ...")
+
+    if True:
         
         e_loss_array = torch.zeros(dpa_list[0].shape[0], 3)
         for i in range(dpa_list[0].shape[0]):
@@ -736,15 +777,16 @@ def main():
             e_loss_array[i,0] = e_loss[0].detach() 
             e_loss_array[i,1] = e_loss[1].detach()
             e_loss_array[i,2] = e_loss[2].detach()
-            print(i)
-            print("Energy Loss:", e_loss)
+            #print(i)
+            #print("Energy Loss:", e_loss)
 
         # Save
         torch.save(e_loss_array, f"{ensemble_path}/e_loss_over_time.pt")
 
-    e_loss_array = torch.load(f"{ensemble_path}/e_loss_over_time.pt")
+    else:
+        e_loss_array = torch.load(f"{ensemble_path}/e_loss_over_time.pt")
     #print("e loss shape:", e_loss_pre.shape)
-
+    print("Time resolved energy loss calculated ...")
     # create xarray from e_loss
     loss_types = ["energy_loss", "S1", "S2"]
 
@@ -770,7 +812,7 @@ def main():
     # standardize loss values
     # Standardize along the 'time' dimension
     eloss_standardized = (eloss_xr_time_series - eloss_xr_time_series.mean(dim="time")) / eloss_xr_time_series.std(dim="time")
-    print(eloss_standardized)
+    #print(eloss_standardized)
 
     # compute yearly mean values for energy loss
     yearly_eloss_standardized = (eloss_standardized.groupby("time.year").mean(dim="time"))
@@ -821,7 +863,7 @@ def main():
 
     # now transpose (switch i and :) everything to calculate scores over time i.e. for each map
     
-    if False:
+    if True:
         
         e_loss_array = torch.zeros(dpa_list_cf[0].shape[0], 3)
         for i in range(dpa_list_cf[0].shape[0]):
@@ -838,8 +880,8 @@ def main():
 
         # Save
         torch.save(e_loss_array, f"{ensemble_path}/e_loss_over_time_cf.pt")
-
-    e_loss_array = torch.load(f"{ensemble_path}/e_loss_over_time_cf.pt")
+    else:
+        e_loss_array = torch.load(f"{ensemble_path}/e_loss_over_time_cf.pt")
     #print("e loss shape:", e_loss_pre.shape)
 
     # create xarray from e_loss
@@ -867,7 +909,7 @@ def main():
     # standardize loss values
     # Standardize along the 'time' dimension
     eloss_standardized = (eloss_xr_time_series - eloss_xr_time_series.mean(dim="time")) / eloss_xr_time_series.std(dim="time")
-    print(eloss_standardized)
+    #print(eloss_standardized)
 
     # compute yearly mean values for energy loss
     yearly_eloss_standardized = (eloss_standardized.groupby("time.year").mean(dim="time"))
@@ -945,29 +987,29 @@ def main():
     ###############
 
     # mean of RAW factual ensemble
-    print("Calculating ensemble mean ...")
+    #print("Calculating ensemble mean ...")
     #dpa_fact_1300_raw_mean = dpa_ens_mean_fact_1300_raw.mean(dim="ensemble_member")
 
     ## turn dpa ens (mean) into torch array
     dpa_ens_mean_fact_1300_raw_pt = torch.from_numpy(dpa_ens_mean_fact_1300_raw.values) #dpa_ens_mean_pt
     
     # check shapes and types
-    print("dpa_ens_mean_pt shape", dpa_ens_mean_fact_1300_raw_pt.shape)
+    #print("dpa_ens_mean_pt shape", dpa_ens_mean_fact_1300_raw_pt.shape)
 
     # calculate correlation
-    print("Now calculating pearson correlation")
+    #print("Now calculating pearson correlation")
     # test temperature vs. eg dpa_ens_mean_1300
     r_cols = evaluation.pearsonr_cols(eth_fact_1300_test_reduced, dpa_ens_mean_fact_1300_raw_pt, dim=0)  # shape: (648,)
 
-    print("Correlation calculated ...")
-    print(type(r_cols))
+    #print("Correlation calculated ...")
+    #print(type(r_cols))
     
     # prepare for plotting
     
     # restore nans
     # add dimension for function ut.restore_nan_columns to work correctly
     corr_spatial_pre = ut.restore_nan_columns(r_cols[None, :], mask_x_te)
-    print("Correlation spatial shape", corr_spatial_pre.shape)
+    #print("Correlation spatial shape", corr_spatial_pre.shape)
     
     # turn statistics array into xarray
     # insert ds_test for coordinate information
@@ -1012,7 +1054,7 @@ def main():
 
     # plot
     r2_spatial_pre = ut.restore_nan_columns(r2[None, :], mask_x_te)
-    print("R2 spatial", r2_spatial_pre.shape)
+    #print("R2 spatial", r2_spatial_pre.shape)
     
     # turn statistics array into xarray
     r2_spatial = ut.torch_to_dataarray(r2_spatial_pre, ds_test, name="R^2")
@@ -1055,7 +1097,7 @@ def main():
     # restore nans
     # add dimension for function ut.restore_nan_columns to work correctly
     ri_spatial_pre = ut.restore_nan_columns(ri_vals[None, :], mask_x_te)
-    print("RI spatial shape", ri_spatial_pre.shape)
+    #print("RI spatial shape", ri_spatial_pre.shape)
     log_print(log_file, f"Factual RI spatial mean: {ri_vals.mean()}")
     
     # turn statistics array into xarray
@@ -1505,7 +1547,7 @@ def main():
 
     ### DPA Ensemble ###
     dpa_ens_mean_entire_domain = dpa_1300_fact_raw.mean(dim = ("ensemble_member", "lat_x_lon"), skipna=True) #dpa_ensemble_raw
-    print(dpa_ens_mean_entire_domain)
+    #print(dpa_ens_mean_entire_domain)
 
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 6))
     dpa_ens_mean_entire_domain.plot(ax=ax)
@@ -1524,7 +1566,7 @@ def main():
     n_time = arr.sizes["time"] // n_ens
     
     reshaped = arr.values.reshape(arr.sizes["lat"], arr.sizes["lon"], n_ens, n_time)
-    print(reshaped.shape) # shape = (32, 32, 100, 4769)
+    #print(reshaped.shape) # shape = (32, 32, 100, 4769)
     arr_unstacked = xr.DataArray(
         reshaped,
         dims=("lat", "lon", "ensemble_member", "time"),
@@ -1536,7 +1578,7 @@ def main():
         },
         name="TREFHT"
     )
-    print(arr_unstacked)
+    #print(arr_unstacked)
     le_T_mean_spat_mean = arr_unstacked.mean(dim=("ensemble_member", "lat", "lon"), skipna=True)
 
     ### compute yearly means ###
@@ -1552,8 +1594,8 @@ def main():
     yearly_mean_dpa.plot(ax=ax, label="Europe DPA Ensemble Mean")
     yearly_mean_le.plot(ax=ax, label="Europe LE Forced Response")
 
-    print("dpa_ens_mean_entire_domain:", dpa_ens_mean_entire_domain)
-    print("le_T_mean_spat_mean:", le_T_mean_spat_mean)
+    #print("dpa_ens_mean_entire_domain:", dpa_ens_mean_entire_domain)
+    #print("le_T_mean_spat_mean:", le_T_mean_spat_mean)
     
     ax.legend()
     ax.set_title("European Domain Average Yearly Average Temperature", fontsize=title_fontsize)
@@ -1566,14 +1608,14 @@ def main():
     ################################
     ### RUN LE TRAIN DATA SCRIPT ###
     ################################
-
-    analyse_dpa_ensemble_from_LE_train_set.main(args) 
+    if args.include_train_analysis:
+        analyse_dpa_ensemble_from_LE_train_set.main(args) 
 
     ###########################
     ### CREATE SUMMARY PAGE ###
     ###########################
     
-    create_summary_page.summary(path_eth=save_path_eth, path_le=save_path_le, save_path=save_path_eth, period=f"{time_period[0]}-{time_period[1]}")
+    create_summary_page.summary(path_eth=save_path_eth, path_le=save_path_le, save_path=save_path_eth, period=f"{time_period[0]}-{time_period[1]}", include_train_analysis=args.include_train_analysis)
     
 
 

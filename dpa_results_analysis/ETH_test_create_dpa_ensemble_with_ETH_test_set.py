@@ -33,16 +33,17 @@ import dpa_ensemble as de
 import utils as ut
 import evaluation
 
-def main
+def main():
     parser = argparse.ArgumentParser(description="Example script with arguments")
 
     # Define arguments
+    parser.add_argument("--autoencode_only", type=int, default=0)
     parser.add_argument("--ens_members", type=int, help="Number of ensemble members to create")
     parser.add_argument("--save_path_ensemble_single", type=str, help="path for saving single ens members")
     parser.add_argument("--model_path", type=str, help="path to DPA model components")
-    parser.add_argument("--encoder", type=str, help="encoder filename")
-    parser.add_argument("--decoder", type=str, help="decoder filename")
-    parser.add_argument("--latent_map", type=str, help="latent_map filename")
+    parser.add_argument("--encoder_model", type=str, help="encoder filename")
+    parser.add_argument("--decoder_model", type=str, help="decoder filename")
+    parser.add_argument("--latent_map_model", type=str, help="latent_map filename")
     parser.add_argument("--no_epochs", type=int, help="Number of epochs")
 
       # --- Encoder and model structure ---
@@ -62,7 +63,7 @@ def main
     parser.add_argument("--num_layers", type=int, default=6,
                         help="Number of layers in the encoder/decoder (default: 6).")
 
-    parser.add_argument("--noise_dim_dec", type=int, default=5,
+    parser.add_argument("--noise_dim_dec", type=int, default=20, # was set to 5 before
                         help="Noise dimension for decoder (default: 5).")
 
     # --- Latent model / latent mapping (LM) ---
@@ -109,8 +110,12 @@ def main
     print("Script started ...")
     ens_members = args.ens_members
 
-    save_path_ensemble_single = f"{args.save_path_ensemble_single}eth_ensemble_after_{args.no_epochs}_epochs" #"/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_100epochs/eth_ensemble_after_100_epochs"
+    if args.autoencode_only:
+        save_path_ensemble_single = f"{args.save_path_ensemble_single}eth_ensemble_after_{args.no_epochs}_epochs"
 
+    else:
+        save_path_ensemble_single = f"{args.save_path_ensemble_single}eth_ensemble_after_{args.no_epochs}_epochs" #"/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_100epochs/eth_ensemble_after_100_epochs"
+    
     os.makedirs(save_path_ensemble_single, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("device:", device)
@@ -138,12 +143,13 @@ def main
     lambd=args.lambd #0.5
     bs=args.bs #128
 
+    print("Autoencode only:", args.autoencode_only)
     # create_ensemble() saves ensemble and return mask
     mask, ds_train, ds_test, x_te_reduced = de.create_ensemble(ensemble_type="ETH",
                                     ensemble_size=ens_members,
                                     save_path=save_path_ensemble_single,
                                     device=device,
-                                    encoder="learnable",
+                                    encoder=encoder,
                                     in_dim=in_dim,
                                     latent_dim=latent_dim,
                                     num_layers=num_layers,
@@ -156,11 +162,12 @@ def main
                                     num_layers_lm=num_layers_lm,
                                     hidden_dim_lm=hidden_dim,
                                     noise_dim_lm=noise_dim_lm,
-                                    encoder_path=f"{args.model_path}/{args.encoder}",
-                                    decoder_path=f"{args.model_path}/{args.decoder}",
-                                    lm_path=f"{args.model_path}/{args.latent_map}",
+                                    encoder_path=f"{args.model_path}/{args.encoder_model}",
+                                    decoder_path=f"{args.model_path}/{args.decoder_model}",
+                                    lm_path=f"{args.model_path}/{args.latent_map_model}",
                                     create_factual_ensemble=True,
-                                    create_counterfactual_ensemble=True
+                                    create_counterfactual_ensemble=True,
+                                    autoencode=args.autoencode_only
                                     )
 
     # save data to netCDF dataset
@@ -170,6 +177,7 @@ def main
                                                                     ds_coords=ds_test,
                                                                     ens_members=ens_members,
                                                                     save_path=f"{save_path_ensemble_single}",
+                                                                    no_epochs=args.no_epochs,
                                                                     climate_list=["gen", "cf_gen"]
                                                                     )
 

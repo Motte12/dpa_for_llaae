@@ -202,8 +202,11 @@ def create_ensemble(ensemble_type,
                     lm_path,
                     create_factual_ensemble=False,
                     create_counterfactual_ensemble=False,
-                    create_train_ensemble=False
+                    create_train_ensemble=False,
+                    autoencode=False # whether to use only autoencoder or not
                    ):
+    
+    print("Autoencode:", autoencode)
     # load data
     if ensemble_type == "LE":
         #z500_test, z500_train, mask, ds_train, ds_test, x_te_reduced = load_test_data()
@@ -241,23 +244,36 @@ def create_ensemble(ensemble_type,
 
     # actually create ensemble
     if create_factual_ensemble:
-        for i in range(1, ensemble_size+1):
-            gen_te = model_dec(model_pred(z500_test.to(device)))
-            torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
+        if autoencode:
+            print("Autoencoding factual ETH test set ...")
+            for i in range(1, ensemble_size+1):
+                gen_te = model_dec(model_enc(x_te_reduced.to(device)))
+                torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
+        else:
+            print("Normal predictions ...")
+            for i in range(1, ensemble_size+1):
+                gen_te = model_dec(model_pred(z500_test.to(device)))
+                torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
 
     if create_train_ensemble:
-        for i in range(1, ensemble_size+1):
-            gen_te = model_dec(model_pred(z500_train.to(device)))
-            torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
+            for i in range(1, ensemble_size+1):
+                gen_te = model_dec(model_pred(z500_train.to(device)))
+                torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
 
     if create_counterfactual_ensemble:
-        # replace GMTs with 0 for counterfactual predictions
-        # HERE!
-        z500_test_cf = z500_test
-        z500_test_cf[:,-1] = 0
-        for i in range(1, ensemble_size+1):
-            gen_te_cf = model_dec(model_pred(z500_test_cf.to(device)))
-            torch.save(gen_te_cf, f"{save_path}/cf_gen{i}_te.pt")
+        if autoencode:
+            print("Autoencoding nudged runs ... ")
+            for i in range(1, ensemble_size+1):
+                gen_te = model_dec(model_enc(x_te_reduced_cf.to(device)))
+                torch.save(gen_te, f"{save_path}/cf_gen{i}_te.pt")
+        else:
+            print("Normal cf predictions ...")
+            # replace GMTs with 0 for counterfactual predictions
+            z500_test_cf = z500_test
+            z500_test_cf[:,-1] = 0
+            for i in range(1, ensemble_size+1):
+                gen_te_cf = model_dec(model_pred(z500_test_cf.to(device)))
+                torch.save(gen_te_cf, f"{save_path}/cf_gen{i}_te.pt")
 
     if ensemble_type == "ETH":
         ds_train = "no ds_train present"

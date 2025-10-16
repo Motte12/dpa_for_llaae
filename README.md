@@ -32,9 +32,11 @@ dpa_results_analysis/ --> structured/automated analysis of results
 
 ## joint_training/analysing_dpa_results
 
-##############
-### README ###
-##############
+**Data:**
+- input data in: "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/"
+    + v1_until16102025/ -> first version of trining/test data until 16.10.2025
+    + 
+- output data in: "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/" 
 
 **Workflow:**
 

@@ -284,7 +284,7 @@ def find_analogues(t_dataarray, pc_scores_ds, z500_sample, no_pcs, no_nearest):
 
     return nearest_temps, top_idxs
 
-def load_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None):
+def load_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, no_epochs="not_specified"):
     #file_list = sorted(f for f in os.listdir(path) if f.endswith(".pt"))
 
 
@@ -313,7 +313,7 @@ def load_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None):
     if save_path is not None:
         # save to zarr
         #ds_raw.to_zarr(f"{save_path}/raw_dpa_ens_100_dataset_restored.zarr", consolidated=True, encoding={"TREFHT": {"_FillValue": None}})
-        ds_raw.to_netcdf(f"{save_path}/raw_dpa_ens_100_dataset_restored.nc", format="NETCDF4")
+        ds_raw.to_netcdf(f"{save_path}/raw_dpa_ens_{no_epochs}_dataset_restored.nc", format="NETCDF4")
         
     ### Restore NaNs ###
     
@@ -343,12 +343,12 @@ def load_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None):
     if save_path is not None:
         # save to zarr
         #ds.to_zarr(f"{save_path}/dpa_ens_100_dataset_restored.zarr", consolidated=True, encoding={"TREFHT": {"_FillValue": None}})
-        ds.to_netcdf(f"{save_path}/dpa_ens_100_dataset_restored.nc", format="NETCDF4")
+        ds.to_netcdf(f"{save_path}/dpa_ens_{no_epochs}_dataset_restored.nc", format="NETCDF4")
     
 
     return tensor_list, tensor_list_raw, stacked, stacked_reshaped, ds
 
-def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, climate_list=[]):
+def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, no_epochs="not_specified", climate_list=[]):
     '''
     climate_list: ["cf_gen", "gen"]: list of climates (counterfactual and factual) to laod and save
     
@@ -389,7 +389,7 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, cli
         if save_path is not None:
             # save to zarr
             #ds_raw.to_zarr(f"{save_path}/raw_dpa_ens_100_dataset_restored.zarr", consolidated=True, encoding={"TREFHT": {"_FillValue": None}})
-            ds_raw.to_netcdf(f"{save_path}/raw_ETH_{climate}_dpa_ens_100_dataset.nc", format="NETCDF4")
+            ds_raw.to_netcdf(f"{save_path}/raw_ETH_{climate}_dpa_ens_{no_epochs}_dataset.nc", format="NETCDF4")
             
         ### Restore NaNs ###
         
@@ -423,7 +423,7 @@ def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, cli
         if save_path is not None:
             # save to zarr
             #ds.to_zarr(f"{save_path}/dpa_ens_100_dataset_restored.zarr", consolidated=True, encoding={"TREFHT": {"_FillValue": None}})
-            ds.to_netcdf(f"{save_path}/ETH_{climate}_dpa_ens_100_dataset_restored.nc", format="NETCDF4")
+            ds.to_netcdf(f"{save_path}/ETH_{climate}_dpa_ens_{no_epochs}_dataset_restored.nc", format="NETCDF4")
     
 
     return list_tensor_list, list_tensor_list_raw, list_stacked, list_stacked_reshaped, list_ds
@@ -682,6 +682,7 @@ def torch_to_dataarray(x_tensor, coords_ds, lat_dim=32, lon_dim=32, name="variab
         print("input array is numpy array")
         data_np = x_tensor
     elif isinstance(x_tensor, torch.Tensor):
+        print("input array is torch tensor")
         data_np = x_tensor.detach().cpu().numpy()
 
     # Step 2: Determine time_steps and reshape
@@ -690,6 +691,66 @@ def torch_to_dataarray(x_tensor, coords_ds, lat_dim=32, lon_dim=32, name="variab
         time_steps = 1
     elif data_np.ndim > 2:
         time_steps = data_np.shape[0]
+    
+    data_np = data_np.reshape(time_steps, lat_dim, lon_dim)
+
+    # Step 3: Transpose to (lat, lon, time)
+    data_np = data_np.transpose(1, 2, 0)
+
+    # Step 4: Create the DataArray
+    da = xr.DataArray(
+        data_np,
+        dims=("lat", "lon", "time"),
+        coords={
+            "lat": coords_ds.lat,
+            "lon": coords_ds.lon,
+            "time": np.arange(time_steps)
+        },
+        name=name
+    )
+
+    return da
+
+def torch_to_dataarray_ae_only(x_tensor, coords_ds, lat_dim=32, lon_dim=32, name="variable"):
+    """
+    Convert a flattened 2D torch tensor to a 3D xarray.DataArray (lat, lon, time).
+
+    Parameters:
+    ----------
+    x_tensor : torch.Tensor
+        A 2D tensor of shape (time_steps, lat_dim * lon_dim), or a 1D tensor to be reshaped.
+    lat_dim : int
+        Number of latitude points.
+    lon_dim : int
+        Number of longitude points.
+    coords_ds : xarray.Dataset
+        Dataset containing 'lat', 'lon', and 'time' coordinates to assign.
+    name : str, optional
+        Name of the variable in the DataArray.
+
+    Returns:
+    -------
+    xarray.DataArray
+        The reshaped and labeled data as an xarray.DataArray.
+    """
+    # Step 1: Convert to NumPy
+    # data_np = x_tensor.detach().cpu().numpy()
+
+    # Step 1: Convert to NumPy
+    if isinstance(x_tensor, np.ndarray):
+        # x is a NumPy array
+        print("input array is numpy array")
+        data_np = x_tensor
+    elif isinstance(x_tensor, torch.Tensor):
+        print("input array is torch tensor")
+        data_np = x_tensor.detach().cpu().numpy()
+
+    # Step 2: Determine time_steps and reshape
+    print("data_np dimensions:", data_np.ndim)
+    #if data_np.ndim == 2:
+    #    time_steps = 1
+    #elif data_np.ndim > 2:
+    time_steps = data_np.shape[0]
     
     data_np = data_np.reshape(time_steps, lat_dim, lon_dim)
 
