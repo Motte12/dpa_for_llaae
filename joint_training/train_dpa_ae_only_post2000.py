@@ -91,7 +91,7 @@ def main():
         settings = json.load(file)
     
     # create save directory
-    save_dir = f"{settings['output_dir']}_{latent_dim}_{num_layers}_{hidden_dim}_{noise_dim_dec}_{in_dim_lm}_{noise_dim_lm}_{num_layers_lm}_{hidden_dim_lm}_encoderis{encoder}_lambda{lam}_bs{batch_size}/"
+    save_dir = f"{settings['output_dir']}_training_data_2000-2100_{latent_dim}_{num_layers}_{hidden_dim}_{noise_dim_dec}_{in_dim_lm}_{noise_dim_lm}_{num_layers_lm}_{hidden_dim_lm}_encoderis{encoder}_lambda{lam}_bs{batch_size}/"
     
     # create directory
     os.makedirs(save_dir, exist_ok=True)
@@ -132,12 +132,12 @@ def main():
         json.dump(settings, f, indent=4)
     
     # Load temperature data
-    ds = xr.open_dataset(settings['dataset_trefht'])
-    print("Dataset:", settings['dataset_trefht'])
+    ds = xr.open_dataset(settings['dataset_trefht_post2000'])
+    print("Dataset:", settings['dataset_trefht_post2000'])
 
     # set train/test split
-    ds_train = ds.isel(time=slice(0, 4769 * 90)) #4769 * 80
-    ds_test = ds.isel(time=slice(4769 * 90, 476900)) #4769 * 80
+    ds_train = ds.isel(time=slice(0, 1919 * 90)) #4769 * 80
+    ds_test = ds.isel(time=slice(1919 * 90, 191900)) #4769 * 80
 
     print(ds_train.TREFHT.shape)
     print(ds_test.TREFHT.shape)

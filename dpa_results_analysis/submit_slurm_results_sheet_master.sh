@@ -6,4 +6,4 @@
 
 eval "$(conda shell.bash hook)"
 conda activate dpa
-python3 results_sheet_master.py
+python3 analysis_results_sheet_ETH_master.py

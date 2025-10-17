@@ -22,7 +22,7 @@ import sys
 sys.path.append('/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder')
 import utils as ut
 
-def load_test_data(settings_file_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/dpa_train_settings.json"
+def load_test_data(settings_file_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/v2_dpa_train_settings.json"
 ):
     with open(settings_file_path, 'r') as file:
         settings = json.load(file)
@@ -55,7 +55,7 @@ def load_test_data(settings_file_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_
     
     return z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced
 
-def load_eth_test_data(settings_file_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/dpa_train_settings.json"):
+def load_eth_test_data(settings_file_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/v2_dpa_train_settings.json"):
     
     # TREFHT 
     ## factual

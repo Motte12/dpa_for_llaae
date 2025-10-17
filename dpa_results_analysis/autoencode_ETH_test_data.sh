@@ -18,8 +18,8 @@ echo "DPA Environment activated"
 # === Shared configuration ===
 NO_EPOCHS=30
 ENS_MEMBERS=100
-MODEL_PATH="/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_autoencoder_only/"
-MODEL="_50_6_50_20_1001_20_2_50_encoderislearnable_lambda0.5_bs128"
+MODEL_PATH="/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_autoencoder_only/v2_data/"
+MODEL="_training_data_2000-2100_50_6_50_5_1001_20_2_50_encoderislearnable_lambda0.5_bs128"
                                                                                                                                                          
 ENCODER="model_enc_${NO_EPOCHS}.pt"
 DECODER="model_dec_${NO_EPOCHS}.pt"
@@ -28,6 +28,7 @@ LATENT_MAP="model_pred_${NO_EPOCHS}.pt"
 
 # save paths
 ensemble_save_path="${MODEL_PATH}${MODEL}/dpa_ensemble_after_${NO_EPOCHS}_epochs_only_autoencoder_trained/"
+results_save_comment="v2_training_data_2000-2100"
 
 # ETH ensemble
 srun -N1 -n1 python3 ETH_test_create_dpa_ensemble_with_ETH_test_set.py \
@@ -62,8 +63,8 @@ for i in "${!period_start_years[@]}"; do
         --ensemble_path $ensemble_save_path \
         --no_epochs $NO_EPOCHS \
         --ens_members $ENS_MEMBERS \
-        --save_path_le "ETH_analysis_results/final_analysis_train_LE/model_trained_for_${NO_EPOCHS}_autoencode_only_epochs" \
-        --save_path_eth "ETH_analysis_results/final_analysis_test_ETH/model_${MODEL}/trained_for_${NO_EPOCHS}_autoencode_only_epochs" \
+        --save_path_le "ETH_analysis_results/final_analysis_train_LE/model_trained_for_${NO_EPOCHS}_epochs_autoencode_only_${results_save_comment}" \
+        --save_path_eth "ETH_analysis_results/final_analysis_test_ETH/model_${MODEL}/trained_for_${NO_EPOCHS}_epochs_autoencode_only_${results_save_comment}" \
         --include_train_analysis 0 &
 done
 
