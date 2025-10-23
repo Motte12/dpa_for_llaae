@@ -132,8 +132,8 @@ def main():
         json.dump(settings, f, indent=4)
     
     # Load temperature data
-    ds = xr.open_dataset(settings['dataset_trefht_post2000'])
-    print("Dataset:", settings['dataset_trefht_post2000'])
+    ds = xr.open_dataset(settings['dataset_trefht'])
+    print("Dataset:", settings['dataset_trefht'])
 
     # set train/test split
     ds_train = ds.isel(time=slice(0, 1919 * 90)) #4769 * 80

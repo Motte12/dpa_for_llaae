@@ -22,8 +22,7 @@ import sys
 sys.path.append('/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder')
 import utils as ut
 
-def load_test_data(settings_file_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/v2_dpa_train_settings.json"
-):
+def load_test_data(settings_file_path):
     with open(settings_file_path, 'r') as file:
         settings = json.load(file)
 
@@ -31,8 +30,8 @@ def load_test_data(settings_file_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_
     ds = xr.open_dataset(settings['dataset_trefht'])
     
     # set train/test split
-    ds_train = ds.isel(time=slice(0, 128000)) 
-    ds_test = ds.isel(time=slice(-64000, 476900))
+    ds_train = ds.isel(time=slice(0, 20*4769)) 
+    ds_test = ds.isel(time=slice(90*4769, 476900))
     
     # transform to torch tensors
     x_tr = ut.data_to_torch(ds_train, "TREFHT")
@@ -50,12 +49,12 @@ def load_test_data(settings_file_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_
     print("z500 shape", z500.shape)
     
     
-    z500_train = z500[:int(128000),:]
-    z500_test = z500[int(-64000):,:]
+    z500_train = z500[0:int(4769 * 20),:]
+    z500_test = z500[int(90*4769):476900,:]
     
     return z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced
 
-def load_eth_test_data(settings_file_path = "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/v2_dpa_train_settings.json"):
+def load_eth_test_data(settings_file_path):
     
     # TREFHT 
     ## factual
@@ -200,6 +199,7 @@ def create_ensemble(ensemble_type,
                     encoder_path,
                     decoder_path,
                     lm_path,
+                    settings_file_path,
                     create_factual_ensemble=False,
                     create_counterfactual_ensemble=False,
                     create_train_ensemble=False,
@@ -210,10 +210,10 @@ def create_ensemble(ensemble_type,
     # load data
     if ensemble_type == "LE":
         #z500_test, z500_train, mask, ds_train, ds_test, x_te_reduced = load_test_data()
-        z500_test, z500_train, mask, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced = load_test_data()
+        z500_test, z500_train, mask, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced = load_test_data(settings_file_path)
 
     elif ensemble_type == "ETH":
-        z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf = load_eth_test_data()
+        z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf = load_eth_test_data(settings_file_path)
         #z500_test, mask, ds_test, x_te_reduced, x_te_reduced_cf = load_eth_test_data() # x_te_reduced is x_te_reduced_eth_fact
         
         # z500_standardized, mask_x_te_eth_fact, ds_test_eth_fact, x_te_reduced_eth_fact, x_te_reduced_eth_cf

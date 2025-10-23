@@ -35,7 +35,7 @@ dpa_results_analysis/ --> structured/automated analysis of results
 **Data:**
 - input data in: "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/"
     + v1_until16102025/ -> first version of trining/test data until 16.10.2025
-    + 
+    + v2_starting16102025 -> 2nd version of data, now a 90/100 training/validation split of Large Ensemble (until 21.10.2025 only used for autoencoding of temperature data)
 - output data in: "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/" 
 
 **Workflow:**

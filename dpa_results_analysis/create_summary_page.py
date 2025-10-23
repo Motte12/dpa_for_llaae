@@ -2,8 +2,37 @@ from reportlab.lib.pagesizes import A2, A3, landscape
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
 import glob
+import argparse
 
-def summary(path_eth, path_le, save_path, period, include_train_analysis=1):
+def main(args=None):
+    
+    parser = get_parser()
+
+    # if called as standalone script
+    if args is None:
+        args = parser.parse_args()
+
+    summary(path_eth=args.save_path_eth,
+           path_le=args.save_path_le,
+           save_path=args.save_path,
+           period=args.period,
+           comment=args.summary_save_comment)
+
+def get_parser():
+    """Return an argument parser for this module."""
+    
+    parser = argparse.ArgumentParser(description="Analyse DPA ensemble from LE train set")
+    parser.add_argument("--save_path_eth", type=str, required=True, help="Save path for ETH analysis figures")
+    parser.add_argument("--save_path_le", type=str, required=True, help="Save path for ETH analysis figures")
+    parser.add_argument("--save_path", type=str, help = "Where to save summary page.")
+    parser.add_argument("--period", type=str, help = "Period")
+    parser.add_argument("--summary_save_comment", type=str, default="", help="Comment to include in saved summary file name.")
+
+
+
+    return parser
+
+def summary(path_eth, path_le, save_path, period, include_train_analysis=1, comment=""):
     images_new_pre = [f"{path_le}/LE_train_set_energy_loss_map.png", # 0
               f"{path_le}/LE_train_set_S1_loss_map.png", # 1
               f"{path_le}/LE_train_set_S2_loss_map.png", # 2
@@ -37,7 +66,7 @@ def summary(path_eth, path_le, save_path, period, include_train_analysis=1):
 
     print("Images:", images_new)
     
-    c = canvas.Canvas(f"{save_path}/{period}_evaluation_combined.pdf", pagesize=landscape(A2))
+    c = canvas.Canvas(f"{save_path}/{period}_evaluation_combined_{comment}.pdf", pagesize=landscape(A2))
     page_width, page_height = landscape(A2)
     
     ncols, nrows = 5, 4   # portrait fits 2 across, 4 down
@@ -100,3 +129,6 @@ def summary(path_eth, path_le, save_path, period, include_train_analysis=1):
     
     
     c.save()
+
+if __name__ == "__main__":
+    main()

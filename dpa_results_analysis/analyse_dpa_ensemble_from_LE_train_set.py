@@ -33,14 +33,17 @@ def get_parser():
     parser.add_argument("--period_start", type=int, required=True, help="Start year")
     parser.add_argument("--period_end", type=int, required=True, help="End year")
     parser.add_argument("--ens_members", type=int, default=100, help="Number of ensemble members")
-    #parser.add_argument("--save_path_le", type=str, required=True, help="Save path for analysis figures")
+    parser.add_argument("--save_path_le", type=str, required=True, help="Save path for LE analysis figures")
+    parser.add_argument("--save_path_eth", type=str, required=True, help="Save path for ETH analysis figures")
     parser.add_argument("--ensemble_path", type=str, help="Path of DPA ensemble")
     parser.add_argument("--no_epochs", type=int, help="Number of epochs")
+    parser.add_argument("--settings_file_path", type=str, help="Path of settings (datasets) to create ensemble.")
+
     return parser
     
 def main(args=None):
 
-
+    print("Script starting")
     #######################
     ### INPUT ARGUMENTS ###
     #######################
@@ -60,8 +63,9 @@ def main(args=None):
     if args is None:
         args = parser.parse_args()
 
+    print("Args parsed")
     
-    save_path_le = f"ETH_analysis_results/final_analysis_train_LE/model_trained_for_{args.no_epochs}_epochs/"
+    save_path_le = args.save_path_le #f"ETH_analysis_results/final_analysis_train_LE/model_trained_for_{args.no_epochs}_epochs/"
     print("save path LE analysis results:", save_path_le)
     os.makedirs(save_path_le, exist_ok=True)
 
@@ -81,8 +85,10 @@ def main(args=None):
 
     
     # load data
-    z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced = de.load_test_data()
+    z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced = de.load_test_data(args.settings_file_path)
     print("x_tr_reduced:", x_tr_reduced.shape)
+    print("ds_train shape:", ds_train.TREFHT.shape)
+    
     ####################
     ### Energy Score ###
     ####################
@@ -98,7 +104,6 @@ def main(args=None):
                                   ens_members=ens_members)
     print("DPA tensor list:", len(dpa_list))
     print("DPA tensor list element shape:", dpa_list[0].shape) # list elements contain all timesteps 14307 (3 x 4769)
-
     
     if True:
         e_loss_array = torch.zeros(3,648)
@@ -152,19 +157,19 @@ def main(args=None):
     # plot energy score
     fig, ax = ut.plot_map(e_loss_xr, energy_levels, cmap="YlOrRd", cmap_label = "Energy Loss")
     ax.set_title("Train Set Energy Loss", fontsize=title_fontsize)
-    fig.savefig(f"{save_path_le}LE_train_set_energy_loss_map.png")
+    fig.savefig(f"{save_path_le}/LE_train_set_energy_loss_map.png")
     plt.show()
 
     # plot S1 loss
     fig, ax = ut.plot_map(s1_loss_xr, levels, cmap="YlOrRd", cmap_label = "Reconstruction Loss (S1)")
     ax.set_title("Train Set S1 Loss", fontsize=title_fontsize)
-    fig.savefig(f"{save_path_le}LE_train_set_S1_loss_map.png")
+    fig.savefig(f"{save_path_le}/LE_train_set_S1_loss_map.png")
     plt.show()
 
     # plot s2 loss
     fig, ax = ut.plot_map(s2_loss_xr, levels, cmap="YlOrRd", cmap_label = "Variability Loss (S2)")
     ax.set_title("Train Set S2 Loss", fontsize=title_fontsize)
-    fig.savefig(f"{save_path_le}LE_train_set_S2_loss_map.png")
+    fig.savefig(f"{save_path_le}/LE_train_set_S2_loss_map.png")
     plt.show()
 
 
@@ -172,7 +177,6 @@ def main(args=None):
     
     if True:
     
-        #sys.exit()
         e_loss_array = torch.zeros(dpa_list[0].shape[0], 3)
         for i in range(dpa_list[0].shape[0]):
             # keep only subset of tensors in list
@@ -237,10 +241,13 @@ def main(args=None):
 
     # compute yearly mean values for energy loss
     yearly_eloss_standardized_pre = (eloss_standardized.groupby("time.year").mean(dim="time"))
+    #print("Yearly e loss standardized:", yearly_eloss_standardized_pre)
+    years_no = (yearly_eloss_standardized_pre["year"])
+    print("Number of different years:", years_no.shape)
     
     # Replace the coordinate correctly
     yearly_eloss_standardized = yearly_eloss_standardized_pre.assign_coords(
-        year=("year", aodvis.time.values))
+        year=("year", aodvis.time.values[-years_no.shape[0]:]))
 
     # subset aerosols to europe
     europe_aodvis = aodvis.sel(lat=slice(34, 64), lon=slice(-11.25, 27.5))
@@ -293,7 +300,7 @@ def main(args=None):
     
     # Save figure
     plt.tight_layout()
-    fig.savefig(f"{save_path_le}eloss_and_aerosols.png", dpi=300)
+    fig.savefig(f"{save_path_le}/eloss_and_aerosols.png", dpi=300)
     plt.show()
 
 
@@ -333,7 +340,7 @@ def main(args=None):
     
     # Optimize layout and save
     plt.tight_layout()
-    fig.savefig(f"{save_path_le}all_losses.png", dpi=300)
+    fig.savefig(f"{save_path_le}/all_losses.png", dpi=300)
     plt.show()
         
 

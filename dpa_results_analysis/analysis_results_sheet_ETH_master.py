@@ -49,6 +49,9 @@ def main():
     parser.add_argument("--ens_members", type=int, default=100, help="Number of members in DPA ensemble")
     parser.add_argument("--save_path_le", type=str, help="Save path of LE train set analysis figures")
     parser.add_argument("--save_path_eth", type=str, help="Save path of ETH set analysis figures")
+    parser.add_argument("--settings_file_path", type=str, help="Path of settings (datasets) to create ensemble.")
+    parser.add_argument("--no_test_members", type=int, default=3, help="Number of members in the test set.")
+
 
     args = parser.parse_args()
     #print(type(args))
@@ -116,7 +119,7 @@ def main():
 
 
     # years for time series plotting
-    years = ["1920", "1940", "1960", "1980", "2000", "2020", "2040", "2060"]#, "2000", "2020", "2040", "2060"]
+    years = ["2000", "2020", "2040", "2060"]#, "2000", "2020", "2040", "2060"]
     # subset to years that are contained in time period!!
     # Convert to integers
     start, end = map(int, time_period)
@@ -137,11 +140,12 @@ def main():
     #print("Loading test data ...")
     
     # Large Ensemble Data
-    z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced = de.load_test_data()
+    z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced = de.load_test_data(args.settings_file_path)
+    print(ds)
     #print("x_te_reduced shape:", x_te_reduced.shape)
 
     # ETH Ensemble Test data
-    z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf = de.load_eth_test_data()
+    z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf = de.load_eth_test_data(args.settings_file_path)
     # z500                  -> test predictors
     # mask_x_te_eth_fact    -> land mask
     # ds_test_eth_fact      -> factual test temperatures (xarray dataset) lat: 32, lon: 32, time: 14307
@@ -149,13 +153,17 @@ def main():
     # x_te_reduced_eth_cf   -> land grid cells counterfactual temperature data
     #print("x_te_reduced_eth_fact:", x_te_reduced_eth_fact.shape)
 
+    print("x_te_reduced_eth_fact:", x_te_reduced_eth_fact.shape)
+    slice_end_index = int(x_te_reduced_eth_fact.shape[0]/args.no_test_members)
+    print("Slice end index:", slice_end_index)
+    
     # datasets
-    ds_test_1300_eth_fact = ds_test_eth_fact.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1])) # HERE TP
+    ds_test_1300_eth_fact = ds_test_eth_fact.TREFHT.isel(time=slice(0, slice_end_index)).sel(time=slice(time_period[0], time_period[1])) # HERE TP
     #print("ds_test_1300_eth_fact:", ds_test_1300_eth_fact)
-    ds_test_1300_eth_cf = ds_test_eth_cf.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1])) # HERE TP
+    ds_test_1300_eth_cf = ds_test_eth_cf.TREFHT.isel(time=slice(0, slice_end_index)).sel(time=slice(time_period[0], time_period[1])) # HERE TP
 
     # get indices of time slices
-    time_index = ds_test_eth_fact.TREFHT.isel(time=slice(0, 4769)).get_index("time")
+    time_index = ds_test_eth_fact.TREFHT.isel(time=slice(0, slice_end_index)).get_index("time")
     #print("Time index:", time_index)
     indices = time_index.get_indexer(ds_test_1300_eth_fact.time.values)
     start_idx, end_idx = indices[0], indices[-1]+1 # add 1 to include last index
@@ -177,17 +185,17 @@ def main():
     
     # PYTORCH arrays
     # Factual Test/True temperatures
-    eth_fact_1300_test_reduced = x_te_reduced_eth_fact[:4769,:][start_idx:end_idx,:] # HERE
-    eth_fact_1400_test_reduced = x_te_reduced_eth_fact[4769:2*4769,:][start_idx:end_idx,:]
-    eth_fact_1500_test_reduced = x_te_reduced_eth_fact[-4769:14307,:][start_idx:end_idx,:]
+    eth_fact_1300_test_reduced = x_te_reduced_eth_fact[:slice_end_index,:][start_idx:end_idx,:] # HERE
+    eth_fact_1400_test_reduced = x_te_reduced_eth_fact[slice_end_index:2*slice_end_index,:][start_idx:end_idx,:]
+    eth_fact_1500_test_reduced = x_te_reduced_eth_fact[-slice_end_index:14307,:][start_idx:end_idx,:]
     print("eth_fact_1300_test_reduced shape:", eth_fact_1300_test_reduced.shape)
     mask_x_te = mask_x_te_eth_fact
 
     # Counterfactual
     # Factual Test/True temperatures
-    eth_cf_1300_test_reduced = x_te_reduced_eth_cf[:4769,:][start_idx:end_idx,:] # HERE
-    eth_cf_1400_test_reduced = x_te_reduced_eth_cf[4769:2*4769,:][start_idx:end_idx,:]
-    eth_cf_1500_test_reduced = x_te_reduced_eth_cf[-4769:14307,:][start_idx:end_idx,:]
+    eth_cf_1300_test_reduced = x_te_reduced_eth_cf[:slice_end_index,:][start_idx:end_idx,:] # HERE
+    eth_cf_1400_test_reduced = x_te_reduced_eth_cf[slice_end_index:2*slice_end_index,:][start_idx:end_idx,:]
+    eth_cf_1500_test_reduced = x_te_reduced_eth_cf[-slice_end_index:14307,:][start_idx:end_idx,:]
     print("eth_fact_1300_test_reduced counterfactual shape:", eth_cf_1300_test_reduced.shape)
     
     #########################
@@ -210,29 +218,29 @@ def main():
     print(f"{ensemble_path}/ETH_cf_gen_dpa_ens_{no_epochs}_dataset_restored.nc")
     
     dpa_ensemble_fact_raw = xr.open_dataset(f"{ensemble_path}/raw_ETH_gen_dpa_ens_{no_epochs}_dataset.nc")
-    dpa_1300_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1]))
-    dpa_1400_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(4769,2*4769)).sel(time=slice(time_period[0], time_period[1]))
-    dpa_1500_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(-4769,14307)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1300_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(0, slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1400_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(slice_end_index,2*slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1500_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(-slice_end_index,14307)).sel(time=slice(time_period[0], time_period[1]))
     #print("dpa_1300_fact_raw:", dpa_1300_fact_raw)
     
 
     # shape: ensemble_member: 100, time: 14307, lat: 32, lon: 32
     dpa_ensemble_fact_restored = xr.open_dataset(f"{ensemble_path}/ETH_gen_dpa_ens_{no_epochs}_dataset_restored.nc")
-    dpa_1300_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1]))
-    dpa_1400_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(4769,2*4769)).sel(time=slice(time_period[0], time_period[1]))
-    dpa_1500_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(-4769,14307)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1300_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(0, slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1400_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(slice_end_index,2*slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1500_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(-slice_end_index,14307)).sel(time=slice(time_period[0], time_period[1]))
     
 
     # COUNTERFACTUAL
     dpa_ensemble_raw_cf = xr.open_dataset(f"{ensemble_path}/raw_ETH_cf_gen_dpa_ens_{no_epochs}_dataset.nc")
-    dpa_1300_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1]))
-    dpa_1400_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(4769,2*4769)).sel(time=slice(time_period[0], time_period[1]))
-    dpa_1500_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(-4769,14307)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1300_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(0, slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1400_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(slice_end_index,2*slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1500_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(-slice_end_index,14307)).sel(time=slice(time_period[0], time_period[1]))
 
     dpa_ensemble_restored_cf = xr.open_dataset(f"{ensemble_path}/ETH_cf_gen_dpa_ens_{no_epochs}_dataset_restored.nc")
-    dpa_1300_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(0, 4769)).sel(time=slice(time_period[0], time_period[1]))
-    dpa_1400_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(4769,2*4769)).sel(time=slice(time_period[0], time_period[1]))
-    dpa_1500_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(-4769,14307)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1300_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(0, slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1400_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(slice_end_index,2*slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
+    dpa_1500_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(-slice_end_index,14307)).sel(time=slice(time_period[0], time_period[1]))
     
     #############
     ### Tests ###
@@ -1572,7 +1580,7 @@ def main():
         dims=("lat", "lon", "ensemble_member", "time"),
         coords={
             "ensemble_member": np.arange(1, n_ens + 1),
-            "time": ds.time.isel(time=slice(0,4769)),
+            "time": ds.time.isel(time=slice(0,slice_end_index)),
             "lat": arr.lat,
             "lon": arr.lon,
         },

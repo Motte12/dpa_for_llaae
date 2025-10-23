@@ -37,6 +37,7 @@ def main():
     parser = argparse.ArgumentParser(description="Example script with arguments")
 
     # Define arguments
+    parser.add_argument("--autoencode_only", type=int, default=0)
     parser.add_argument("--ens_members", type=int, help="Number of ensemble members to create")
     parser.add_argument("--save_path_ensemble_single", type=str, help="path for saving single ens members")
     parser.add_argument("--model_path", type=str, help="path to DPA model components")
@@ -44,6 +45,8 @@ def main():
     parser.add_argument("--decoder_model", type=str, help="decoder filename")
     parser.add_argument("--latent_map_model", type=str, help="latent_map filename")
     parser.add_argument("--no_epochs", type=int, help="Number of epochs")
+    parser.add_argument("--settings_file_path", type=str, help="Settings file path.")
+
 
       # --- Encoder and model structure ---
     parser.add_argument("--encoder", type=str, default="learnable",
@@ -157,7 +160,9 @@ def main():
                                     encoder_path=f"{args.model_path}/{args.encoder_model}",
                                     decoder_path=f"{args.model_path}/{args.decoder_model}",
                                     lm_path=f"{args.model_path}/{args.latent_map_model}",
-                                    create_train_ensemble=True
+                                    settings_file_path = args.settings_file_path, #"/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/v2_dpa_train_settings.json",
+                                    create_train_ensemble=True,
+                                    autoencode=args.autoencode_only
                                     )
 
     # save data to netCDF dataset
