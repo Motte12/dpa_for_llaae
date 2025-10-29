@@ -2,7 +2,7 @@
 
 # Result files
 *.pdf
-
+*.nc
 
 # Pytorch models
 *.pt
