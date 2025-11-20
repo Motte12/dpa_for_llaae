@@ -1194,10 +1194,7 @@ def main():
     ### Germany ###
     
     # coordinates 
-    ger_lat_min = 48
-    ger_lat_max = 54
-    ger_lon_min = 6
-    ger_lon_max = 15
+    
 
     for year in years:
         ### Factual ###

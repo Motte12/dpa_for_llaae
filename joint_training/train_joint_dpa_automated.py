@@ -138,8 +138,8 @@ def main():
     print("Dataset:", settings['dataset_trefht'])
 
     # set train/test split
-    ds_train = ds.isel(time=slice(0, 128000)) #4769 * 80
-    ds_test = ds.isel(time=slice(-64000, 476900)) #4769 * 80
+    ds_train = ds.isel(time=slice(0, 4769 * 90)) #
+    ds_test = ds.isel(time=slice(4769 * 90, 476900)) #4769 * 80
     
     # transform to torch tensors
     x_tr = ut.data_to_torch(ds_train, "TREFHT")
@@ -147,14 +147,19 @@ def main():
     
     # load Z500
     ds_z500_pre = xr.open_dataset(settings['dataset_z500'])
-    ds_z500, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values)
+
+    # Z500 not standardized yet
+    #ds_z500, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values) 
+
+    # Z500 already standardized
+    ds_z500 = ds_z500_pre.pseudo_pcs.values #ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values)
     print("z500 shape", ds_z500.shape)
     z500 = torch.from_numpy(ds_z500)
     print("z500 shape", z500.shape)
     
     
-    z500_train = z500[:int(128000),:]
-    z500_test = z500[int(-64000):,:]
+    z500_train = z500[:int(4769 * 90),:]
+    z500_test = z500[int(4769 * 90):,:]
 
     # remove NaNs from data
     x_tr_reduced, mask_x_tr = ut.remove_nan_columns(x_tr)

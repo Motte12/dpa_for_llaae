@@ -64,7 +64,7 @@ def main():
     parser.add_argument("--num_layers", type=int, default=6,
                         help="Number of layers in the encoder/decoder (default: 6).")
 
-    parser.add_argument("--noise_dim_dec", type=int, default=20, # was set to 5 before
+    parser.add_argument("--noise_dim_dec", type=int, default=5, # was set to 5 before
                         help="Noise dimension for decoder (default: 5).")
 
     # --- Latent model / latent mapping (LM) ---

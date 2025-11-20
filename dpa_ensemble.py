@@ -87,7 +87,7 @@ def load_eth_test_data(settings_file_path):
     
     # Z500
     
-    ### Load temperature data ###
+    ### Load Z500 data ###
     ds_z500_pre = xr.open_dataset(settings['dataset_z500_eth_test'])
 
     print("ATTENTION: Z500 PC time-series is standardized manually here")
@@ -177,6 +177,17 @@ def create_dpa_model(device,
 
     print("DPA model created")
 
+    total_params0 = sum(p.numel() for p in model_enc.parameters())
+    print(f"Total encoder parameters: {total_params0:,}")
+
+    total_params1 = sum(p.numel() for p in model_dec.parameters())
+    print(f"Total decoder parameters: {total_params1:,}")
+
+    total_params2 = sum(p.numel() for p in model_pred.parameters())
+    print(f"Total latent map parameters: {total_params2:,}")
+    
+    
+    sys.exit()
     return model_enc, model_dec, model_pred
 
 def create_ensemble(ensemble_type,
@@ -247,24 +258,24 @@ def create_ensemble(ensemble_type,
         if autoencode:
             print("Autoencoding factual ETH test set ...")
             for i in range(1, ensemble_size+1):
-                gen_te = model_dec(model_enc(x_te_reduced.to(device)))
+                gen_te = model_dec(model_enc(x_te_reduced.to(device).float()))
                 torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
         else:
             print("Normal predictions ...")
             for i in range(1, ensemble_size+1):
-                gen_te = model_dec(model_pred(z500_test.to(device)))
+                gen_te = model_dec(model_pred(z500_test.to(device).float()))
                 torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
 
     if create_train_ensemble:
             for i in range(1, ensemble_size+1):
-                gen_te = model_dec(model_pred(z500_train.to(device)))
+                gen_te = model_dec(model_pred(z500_train.to(device).float()))
                 torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
 
     if create_counterfactual_ensemble:
         if autoencode:
             print("Autoencoding nudged runs ... ")
             for i in range(1, ensemble_size+1):
-                gen_te = model_dec(model_enc(x_te_reduced_cf.to(device)))
+                gen_te = model_dec(model_enc(x_te_reduced_cf.to(device).float()))
                 torch.save(gen_te, f"{save_path}/cf_gen{i}_te.pt")
         else:
             print("Normal cf predictions ...")
@@ -272,7 +283,7 @@ def create_ensemble(ensemble_type,
             z500_test_cf = z500_test
             z500_test_cf[:,-1] = 0
             for i in range(1, ensemble_size+1):
-                gen_te_cf = model_dec(model_pred(z500_test_cf.to(device)))
+                gen_te_cf = model_dec(model_pred(z500_test_cf.to(device).float()))
                 torch.save(gen_te_cf, f"{save_path}/cf_gen{i}_te.pt")
 
     if ensemble_type == "ETH":

@@ -31,6 +31,7 @@ LATENT_MAP="model_pred_${NO_EPOCHS}.pt"
 
 echo "models path"
 echo "${MODEL_PATH}${MODEL}"
+
 # save paths
 ensemble_save_path="${MODEL_PATH}${MODEL}/dpa_ensemble_after_${NO_EPOCHS}_epochs_only_autoencoder_trained/"
 results_save_comment="v2_training_data"          #########
