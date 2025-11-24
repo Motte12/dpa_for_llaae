@@ -41,7 +41,7 @@ def main():
     parser.add_argument('--hidden_dim', type=int, help='Hidden dims in encoder and decoder')
     parser.add_argument('--noise_dim_dec', type=int, help='Dimension of noise added to decoder')
     parser.add_argument('--out_activation', type=str, help='Output activation')
-    parser.add_argument('--resblock', type=bool, default=True, help="Whether to use residual block")
+    parser.add_argument('--resblock', type=int, default=1, help="Whether to use residual block")
     
     parser.add_argument('--in_dim_lm', type=int, default=1001, help="Input dimension of the latent map")
     parser.add_argument('--noise_dim_lm', type=int, help='Dimension of noise added in latent map')
@@ -52,7 +52,7 @@ def main():
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate')
     parser.add_argument('--batch_size', type=int, default=128, help='Batch size')
     parser.add_argument('--epochs', type=int, default=200, help='Number of training epochs')
-    parser.add_argument('--batch_norm', type=bool, default="False", help='Whether to use batch normalisation')
+    parser.add_argument('--batch_norm', type=int, default=0, help='Whether to use batch normalisation')
 
     ## Loss
     parser.add_argument('--lam', type=float, default=1.0, help="Weight between energy loss in Y and latent space")
@@ -62,6 +62,7 @@ def main():
     args = parser.parse_args()
     settings_file_path = args.settings_file
     print("settings_file:", settings_file_path)
+    print("args:", args)
 
     encoder = args.encoder
     in_dim = args.in_dim
@@ -70,7 +71,8 @@ def main():
     hidden_dim = args.hidden_dim
     noise_dim_dec = args.noise_dim_dec
     out_act = None#args.out_activation
-    resblock = args.resblock
+    resblock = bool(args.resblock)
+    print("resblock:", resblock)
 
     in_dim_lm = args.in_dim_lm
     noise_dim_lm = args.noise_dim_lm
@@ -79,7 +81,8 @@ def main():
     beta=1
 
     # train settings
-    bn = args.batch_norm
+    bn = bool(args.batch_norm)
+    print("bn:", bn)
     batch_size=args.batch_size
     #include_KL = args.include_KL
     lam = args.lam
@@ -91,7 +94,7 @@ def main():
         settings = json.load(file)
     
     # create save directory
-    save_dir = f"{settings['output_dir']}_{latent_dim}_{num_layers}_{hidden_dim}_{noise_dim_dec}_{in_dim_lm}_{noise_dim_lm}_{num_layers_lm}_{hidden_dim_lm}_encoderis{encoder}_lambda{lam}_bs{batch_size}/"
+    save_dir = f"{settings['output_dir']}_{latent_dim}_{num_layers}_{hidden_dim}_{noise_dim_dec}_{in_dim_lm}_{noise_dim_lm}_{num_layers_lm}_{hidden_dim_lm}_encoderis{encoder}_lambda{lam}_bs{batch_size}_bnis{bn}/"
     
     # create directory
     os.makedirs(save_dir, exist_ok=True)
@@ -560,10 +563,11 @@ def main():
         ##################
         ### Save Model ###
         ##################
-        if (epoch_idx + 1) % 10 == 0:
-            torch.save(model_enc.state_dict(), save_dir + "model_enc_" + str(epoch_idx + 1) + ".pt")
-            torch.save(model_dec.state_dict(), save_dir + "model_dec_" + str(epoch_idx + 1) + ".pt")
-            torch.save(model_pred.state_dict(), save_dir + "model_pred_" + str(epoch_idx + 1) + ".pt")
+        # comment out for tuning
+        #if (epoch_idx + 1) % 10 == 0:
+        #    torch.save(model_enc.state_dict(), save_dir + "model_enc_" + str(epoch_idx + 1) + ".pt")
+        #    torch.save(model_dec.state_dict(), save_dir + "model_dec_" + str(epoch_idx + 1) + ".pt")
+        #    torch.save(model_pred.state_dict(), save_dir + "model_pred_" + str(epoch_idx + 1) + ".pt")
 
         
         ############

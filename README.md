@@ -33,10 +33,14 @@ dpa_results_analysis/ --> structured/automated analysis of results
 ## joint_training/analysing_dpa_results
 
 **Data:**
-- input data in: "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/"
-    + v1_until16102025/ -> first version of trining/test data until 16.10.2025
-    + v2_starting16102025 -> 2nd version of data, now a 90/100 training/validation split of Large Ensemble (until 21.10.2025 only used for autoencoding of temperature data), and data contains GMT of each individual run, not smoothed
 - output data in: "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/" 
+- input data in: "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/"
+    + v1_until16102025/ -> first version of training/test data until 16.10.2025, includes forced response as fGMT predictor
+    + v2_starting16102025 -> 2nd version of data, now a 90/100 training/validation split of Large Ensemble (until 21.10.2025 only used for autoencoding of temperature data), and data contains GMT of each individual run as predictor, not the (smooth) forced response, "dataset_z500" already contains GMT predictors in 0th (21.11.2025: rather in column 1000 I think) column
+    + v3_starting21112025 -> 3rd version of data, as v2 but with forced response as predictor
+       + **standardized forced response** as predictor at mode = 1000 (starting at index 0), need to standardize **0s** when producing counterfactuals (no scaling but shifting by mean value **mean=0.99567246** , standard deviation **std=1.347358**(reproduce with "barat:/home/floer/Climate_Counterfactuals/climat-counterfactuals/LLAAE/data_preprocessing/restructured_modularized/preprocessing_automated/v3_data/predictors/LE/concat_Z500_and_GMT.py"))
+       + fGMT is at predictor mode 1000 (starting from 0)
+
 
 **Workflow:**
 
