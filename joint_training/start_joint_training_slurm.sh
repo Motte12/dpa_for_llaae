@@ -23,7 +23,7 @@ epochs=100
 echo "TASK ${SLURM_ARRAY_TASK_ID} → latent_dim=$ld, encoder=$enc, hidden_dim_NN=$hdn, num_layers_NN=$nln, noise_dim_dec=$ndd, hidden_dim_lm=$hdl, noise_dim_lm=$ndl, lambda=$lambd"
 
 srun ~/.conda/envs/dpa/bin/python train_joint_dpa_automated.py \
-    --settings_file v2_dpa_train_settings.json \
+    --settings_file v1_dpa_train_settings.json \
     --encoder "$enc" \
     --in_dim 648 \
     --latent_dim "$ld" \
@@ -35,4 +35,5 @@ srun ~/.conda/envs/dpa/bin/python train_joint_dpa_automated.py \
     --hidden_dim_lm "$hdl" \
     --lam "$lambd" \
     --batch_size "$bs" \
+    --batch_norm 1 \
     --epochs "$epochs"

@@ -32,7 +32,7 @@ dpa_results_analysis/ --> structured/automated analysis of results
 
 ## joint_training/analysing_dpa_results
 
-**Data:**
+## Data
 - output data in: "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/" 
 - input data in: "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/"
     + v1_until16102025/ -> first version of training/test data until 16.10.2025, includes forced response as fGMT predictor
@@ -40,7 +40,25 @@ dpa_results_analysis/ --> structured/automated analysis of results
     + v3_starting21112025 -> 3rd version of data, as v2 but with forced response as predictor
        + **standardized forced response** as predictor at mode = 1000 (starting at index 0), need to standardize **0s** when producing counterfactuals (no scaling but shifting by mean value **mean=0.99567246** , standard deviation **std=1.347358**(reproduce with "barat:/home/floer/Climate_Counterfactuals/climat-counterfactuals/LLAAE/data_preprocessing/restructured_modularized/preprocessing_automated/v3_data/predictors/LE/concat_Z500_and_GMT.py"))
        + fGMT is at predictor mode 1000 (starting from 0)
+**probably for v3 data I projected ETH Z500 onto EOFs calculated from Z500 and not onto Z500 EOFs of LE**
+    + v4_starting04122025
+       + do not standardize anything, only standardize in training/evaluation scripts for separate train/validation/test standardization
 
+## Models
+- baseline model ("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/baseline_quantile_regression")
+    + stochastic gradient descent model trained on
+    + (v1_data): "v1_data_quantile_regression_ger_gradient_descent_2025-11-25_15-58"
+    + v3_data: "v3_data_quantile_regression_ger_gradient_descent_2025-11-23_19-04"
+      
+- **model3_tuning1 on v1 data** ("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/_50_6_50_5_1001_20_2_50_encoderislearnable_lambda0.5_bs128")
+    + ds = xr.open_dataset(settings['dataset_trefht'])
+    + ds_train = ds.isel(time=slice(0, 128000)) 
+    + ds_test = ds.isel(time=slice(-64000, 476900))
+    + ds_z500_pre = xr.open_dataset(settings['dataset_z500'])
+    + ds_z500, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values)
+
+- **model3_tuning1 on v3 data** in ("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/v3_model/")
+    + with/without batch normalization
 
 **Workflow:**
 

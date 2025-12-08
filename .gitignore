@@ -3,6 +3,8 @@
 # Result files
 *.pdf
 *.nc
+*.out
+*.png
 
 # Pytorch models
 *.pt

@@ -103,6 +103,8 @@ def main():
 
     parser.add_argument("--bs", type=int, default=128,
                         help="Batch size for training (default: 128).")
+    parser.add_argument("--standardize_predictors", type=int, default=0,
+                        help="Whether to manually standardize predictors (only if raw data not standardized already).")
           
     
     
@@ -169,7 +171,8 @@ def main():
                                     settings_file_path=args.settings_file_path,
                                     create_factual_ensemble=True,
                                     create_counterfactual_ensemble=True,
-                                    autoencode=args.autoencode_only
+                                    autoencode=args.autoencode_only,
+                                    standardize_predictors=args.standardize_predictors
                                     )
 
     # save data to netCDF dataset

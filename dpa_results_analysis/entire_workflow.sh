@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=4
 #SBATCH --time=1-01:01
-#SBATCH --mem=400G
+#SBATCH --mem=600G
 #SBATCH --partition=paula
 
 
@@ -16,18 +16,21 @@ echo "DPA Environment activated"
 # submit the two slurm job scripts
 
 # === Shared configuration ===
-NO_EPOCHS=30
+NO_EPOCHS=80
 ENS_MEMBERS=100
-MODEL_PATH="/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1_v2_data/"
+MODEL_PATH="/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/"
 MODEL="_50_6_50_5_1001_20_2_50_encoderislearnable_lambda0.5_bs128"
 ENCODER="model_enc_${NO_EPOCHS}.pt"
 DECODER="model_dec_${NO_EPOCHS}.pt"
 LATENT_MAP="model_pred_${NO_EPOCHS}.pt"
+data_version="v1"
 
+# STANDARDIZE PREDICTORS?
+# --bn or --no_bn
 
 # save paths
 ensemble_save_path="${MODEL_PATH}${MODEL}/dpa_ensemble_after_${NO_EPOCHS}_epochs/"
-results_save_comment="_joint_model_v2_training_data"
+results_save_comment="_joint_model_${data_version}_training_data"
 
 # ETH ensemble
 srun -N1 -n1 python3 ETH_test_create_dpa_ensemble_with_ETH_test_set.py \
@@ -38,21 +41,25 @@ srun -N1 -n1 python3 ETH_test_create_dpa_ensemble_with_ETH_test_set.py \
     --decoder_model $DECODER \
     --latent_map_model $LATENT_MAP \
     --no_epochs $NO_EPOCHS \
-    --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/v2_dpa_train_settings.json" &
+    --standardize_predictors 1 \
+    --bn \
+    --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}_dpa_train_settings.json" &
 
 # LE train data set ensemble
-#srun -N1 -n1 python3 LE_train_create_dpa_ensemble_with_LE_train_set.py \
-#    --ens_members $ENS_MEMBERS \
-#    --save_path_ensemble_single $ensemble_save_path \
-#    --model_path "$MODEL_PATH${MODEL}" \
-#    --encoder_model $ENCODER \
-#    --decoder_model $DECODER \
-#    --latent_map_model $LATENT_MAP \
-#    --no_epochs $NO_EPOCHS \
-#    --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/v2_dpa_train_settings.json" &
+srun -N1 -n1 python3 LE_train_create_dpa_ensemble_with_LE_train_set.py \
+    --ens_members $ENS_MEMBERS \
+    --save_path_ensemble_single $ensemble_save_path \
+    --model_path "$MODEL_PATH${MODEL}" \
+    --encoder_model $ENCODER \
+    --decoder_model $DECODER \
+    --latent_map_model $LATENT_MAP \
+    --no_epochs $NO_EPOCHS \
+    --standardize_predictors 1 \
+    --bn \
+    --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}_dpa_train_settings.json" &
 wait
-echo "Exit early"
-exit
+#echo "Exit early"
+#exit
 #wait
 echo "Ensemble created, now analyzing"
 
@@ -77,7 +84,7 @@ for i in "${!period_start_years[@]}"; do
         --ens_members $ENS_MEMBERS \
         --save_path_eth "ETH_analysis_results/final_analysis_test_ETH/model_${MODEL}/trained_for_${NO_EPOCHS}_epochs_${results_save_comment}" \
         --save_path_le "ETH_analysis_results/final_analysis_train_LE/model_${MODEL}/model_trained_for_${NO_EPOCHS}_epochs_${results_save_comment}" \
-        --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/v2_dpa_train_settings.json" &
+        --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}_dpa_train_settings.json" &
 
 done
 

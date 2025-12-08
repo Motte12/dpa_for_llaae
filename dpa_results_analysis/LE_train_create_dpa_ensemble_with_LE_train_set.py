@@ -104,6 +104,9 @@ def main():
 
     parser.add_argument("--bs", type=int, default=128,
                         help="Batch size for training (default: 128).")
+
+    parser.add_argument("--standardize_predictors", type=int, default=0,
+                        help="Whether to manually standardize predictors (only if raw data not standardized already).")
           
     
     
@@ -162,7 +165,8 @@ def main():
                                     lm_path=f"{args.model_path}/{args.latent_map_model}",
                                     settings_file_path = args.settings_file_path, #"/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/v2_dpa_train_settings.json",
                                     create_train_ensemble=True,
-                                    autoencode=args.autoencode_only
+                                    autoencode=args.autoencode_only,
+                                    standardize_predictors=args.standardize_predictors
                                     )
 
     # save data to netCDF dataset

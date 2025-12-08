@@ -226,7 +226,7 @@ def main(args=None):
     #print(eloss_xr_time_series)
 
     ### load AEROSOL optical depth ###
-    aer_pre = xr.open_dataset("/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/other_data/JJA_mean_LE2_AODVIS_1850_2100.nc").AODVIS
+    aer_pre = xr.open_dataset("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/other_data/JJA_mean_LE2_AODVIS_1850_2100.nc").AODVIS
     
     # Shift and then sort
     aodvis = aer_pre.assign_coords(lon=((aer_pre.lon + 180) % 360) - 180)

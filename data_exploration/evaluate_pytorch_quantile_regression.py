@@ -8,6 +8,9 @@ import torch
 import pytorch_quantile_regression as pqr
 import pandas as pd
 import argparse
+import sys
+sys.path.append('/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder')
+import utils as ut
 
 
 def main():
@@ -15,9 +18,13 @@ def main():
     parser.add_argument("--model_path", type=str, help="Path to quantile regression model to use.")
     parser.add_argument("--results_save_path", type=str, help="Path to save evaluation results.")
     parser.add_argument("--compare_model", type=str, help="Other quantile/ensemble model to compare to.")
+    parser.add_argument("--data_version", type=str, help="Test data version.")
+    parser.add_argument("--eval_counterfactuals", type=int, default=0, help="Whether to evaluate counterfactuals.")
+    parser.add_argument("--one_dimensional_ger", type=int, default=0, help="Whether to evaluate for DPA trained on 1d ger data.")
 
     args = parser.parse_args()
-
+    print(args.data_version)
+    print(type(args.data_version))
 
     #############################
     ### Load comparison model ###
@@ -32,25 +39,33 @@ def main():
     ger_lon_max = 15
     
     # cut train data
+    if args.one_dimensional_ger:
+        trefht_dpa_trans_ger_mean = xr.open_dataset("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/ger_1d_dpa/1d_50_6_50_5_1001_20_2_50_encoderislearnable_lambda0.5_bs128_bnisTrue/raw_ETH_gen_dpa_ens_4_dataset.nc").TREFHT.isel(lat_x_lon=0)
+        print(trefht_dpa_trans_ger_mean.values.T.shape)
 
-    # DPA
-    #dpa_ds = xr.open_dataset(args.compare_model)#xr.open_dataset("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_100epochs/eth_ensemble_after_100_epochs/ETH_gen_dpa_ens_100_dataset_restored.nc")
-    #trefht_dpa_trans_ger = dpa_ds.TREFHT.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
+        
+    else:
+        # DPA
+        dpa_ds = xr.open_dataset(args.compare_model)#xr.open_dataset("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_100epochs/eth_ensemble_after_100_epochs/ETH_gen_dpa_ens_100_dataset_restored.nc") # v2 model
+        trefht_dpa_trans_ger = dpa_ds.TREFHT.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
+        print("##############")
+        print("###Datasets###")
+        print("##############")
+        print(trefht_dpa_trans_ger)
+        # analogues
+        #dpa_ds = xr.open_dataset("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/analogues/analogue_ensemble_10pcs_5analogues_100analoguemembers_complete.nc").ensemble_temp.transpose("analogue_ensemble_member","time","lat","lon")
+        #trefht_dpa_trans_ger = dpa_ds.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
+        
+        # calculate weighted means
+        #weights
+        weights_ger_pre = np.cos(np.deg2rad(trefht_dpa_trans_ger["lat"]))
+        weights_ger = weights_ger_pre / weights_ger_pre.sum()
+        
+        # training data
+        trefht_dpa_trans_ger_mean = trefht_dpa_trans_ger.weighted(weights_ger).mean(dim=("lat", "lon"))
+        #trefht_dpa_trans_ger_mean
 
-    # analogues
-    dpa_ds = xr.open_dataset("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/analogues/analogue_ensemble_10pcs_5analogues_100analoguemembers_complete.nc").ensemble_temp.transpose("analogue_ensemble_member","time","lat","lon")
-    trefht_dpa_trans_ger = dpa_ds.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
-    
-    # calculate weighted means
-    #weights
-    weights_ger_pre = np.cos(np.deg2rad(trefht_dpa_trans_ger["lat"]))
-    weights_ger = weights_ger_pre / weights_ger_pre.sum()
-    
-    # training data
-    trefht_dpa_trans_ger_mean = trefht_dpa_trans_ger.weighted(weights_ger).mean(dim=("lat", "lon"))
-    #trefht_dpa_trans_ger_mean
-
-    trefht_dpa_trans_ger_mean.values.T.shape
+    print(trefht_dpa_trans_ger_mean.values.T.shape)
     dpa_trans_predicted_quantiles = np.quantile(trefht_dpa_trans_ger_mean.values.T, np.linspace(0.05, 0.95, 19), axis=1).T
     print(dpa_trans_predicted_quantiles.shape)
 
@@ -194,25 +209,43 @@ def main():
 
     # ---- Prepare test data ----
     # load my data
-    settings_file_path = "../joint_training/v2_dpa_train_settings.json"
+    settings_file_path = f"../joint_training/{args.data_version}_dpa_train_settings.json" #used v2 here for a long time
     
     with open(settings_file_path, 'r') as file:
             settings = json.load(file)
     
     # Load Z500 data
     z500_test = xr.open_dataset(settings['dataset_z500_eth_test']).pseudo_pcs
-    z500_test_np = z500_test.values
+    if args.data_version == "v1":
+        print("v1 data, still standardized here")
+        z500_test_np, _, _ = ut.standardize_numpy(z500_test.values)
+    else:
+        print("predictors already standardized")
+        z500_test_np = z500_test.values
     X_test_torch = torch.from_numpy(z500_test_np.astype("float32")).to(device)
-
+    print(X_test_torch.shape)
+    
+    if args.eval_counterfactuals:
+        X_test_torch[:,-1] = -0.7389813694652794
     # ---- Predict from Qu. regression model ----
     with torch.no_grad():
         preds = model(X_test_torch)   # shape (N_test, n_quantiles)
     print(preds.shape)
     quantile_predictions = preds.cpu().numpy()
+    print("quantile predictions:", quantile_predictions)
 
     # Temperature Test data
-    trefht_eth = xr.open_dataset(settings['dataset_trefht_eth_transient'])
+    if args.eval_counterfactuals:
+        trefht_eth = xr.open_dataset(settings['dataset_trefht_eth_nudged_shifted'])
+    else:
+        trefht_eth = xr.open_dataset(settings['dataset_trefht_eth_transient'])
     print(trefht_eth)
+
+    print("##############")
+    print("###Datasets###")
+    print("##############")
+    print(xr.open_dataset(settings['dataset_trefht_eth_nudged_shifted']))
+    print(xr.open_dataset(settings['dataset_trefht_eth_transient']))
     
     # germany domain 
     ### Germany ###
@@ -231,9 +264,13 @@ def main():
     #weights
     weights_ger_pre = np.cos(np.deg2rad(trefht_eth["lat"]))
     weights_ger = weights_ger_pre / weights_ger_pre.sum()
-    
+    plt.show()
     # test_data
-    trefht_eth_ger_mean = trefht_eth_ger.TREFHT.weighted(weights_ger).mean(dim=("lat", "lon"))
+    trefht_eth_ger_mean = trefht_eth_ger.TREFHT.weighted(weights_ger).mean(dim=("lat", "lon")).values
+    print("Nans in trefht nudged/number:", np.isnan(trefht_eth_ger_mean).any(), np.isnan(trefht_eth_ger_mean).sum())
+    plt.plot(trefht_eth_ger_mean)
+    plt.savefig("eval_results/test_plot.png")
+    print()
     #trefht_eth_ger_mean
 
     # prepare data for validation 
@@ -276,7 +313,7 @@ def main():
     plt.ylabel("Empirical coverage P(y <= q̂_tau)")
     plt.title("Quantile calibration")
     plt.legend()
-    plt.savefig(f"{args.results_save_path}empirical_coverage_curves.png")
+    #plt.savefig(f"{args.results_save_path}empirical_coverage_curves.png")
     #plt.show()
 
     #####################
@@ -284,19 +321,20 @@ def main():
     #####################
     
     # quantile regression
+    print("y_test_no shape:", y_test_np.shape)
+    
+    
     u = compute_pit_from_quantiles(y_test_np, quantile_predictions, quantiles)
     ax = plot_pit_histogram(u, bins=20, title = "PIT Histogram quantile regression")
     plt.ylim(0,5)
-    plt.savefig(f"{args.results_save_path}PIT_hist_qu_regression.png")
-    #plt.show()
+    
 
     if args.compare_model is not None:
         # DPA
         u = compute_pit_from_quantiles(y_test_np, quantile_predictions_dpa, quantiles)
         ax = plot_pit_histogram(u, bins=20, title = "PIT Histogram comparison model")
         plt.ylim(0,5)
-        plt.savefig(f"{args.results_save_path}PIT_hist_comparison_model.png")
-        #plt.show()
+        
 
 
     #############################
@@ -409,7 +447,7 @@ def main():
     
     axes[2,0].set_axis_off()  # optional: hides the plot frame
     axes[2,1].set_axis_off()
-    plt.savefig(f"{args.results_save_path}summary_qu_regression.png")
+    #plt.savefig(f"{args.results_save_path}summary_qu_regression.png")
     #plt.show()
 
     
@@ -423,8 +461,8 @@ def main():
         plot_calibration_curve(y_test_np, quantile_predictions_dpa, quantiles, ax=axes[0,0])
         
         # upper Right: PIT histogram
-        u = compute_pit_from_quantiles(y_test_np, quantile_predictions_dpa, quantiles)
-        plot_pit_histogram(u, bins=20, ax=axes[0,1])
+        #u = compute_pit_from_quantiles(y_test_np, quantile_predictions_dpa, quantiles)
+        #plot_pit_histogram(u, bins=20, ax=axes[0,1])
         
         # lower left
         _, _, spreads_dpa, mean_spread_dpa, median_spread_dpa, q10_dpa, q90_dpa = plot_qr_spreads(qr_spreads_dpa, axes[1,0], bins=40)
@@ -470,7 +508,7 @@ def main():
         
         axes[2,0].set_axis_off()  # optional: hides the plot frame
         axes[2,1].set_axis_off()
-        plt.savefig(f"{args.results_save_path}summary_dpa.png")
+        #plt.savefig(f"{args.results_save_path}summary_dpa.png")
 
     ####################
     ### Summary Both ###
@@ -639,11 +677,75 @@ def compute_pit_from_quantiles(y_true, q_preds, quantiles):
     q_preds = np.asarray(q_preds)
     taus = np.asarray(quantiles)
 
+    # 1) Make sure taus are sorted and reorder preds accordingly
+    sort_idx = np.argsort(taus)
+    taus = taus[sort_idx]
+    q_preds = q_preds[:, sort_idx]
+
+    N, Q = q_preds.shape
+    u = np.zeros(N, dtype=float)
+
+    for i in range(N):
+        y = y_true[i]
+        qs = q_preds[i, :].copy()
+
+        # 2) Enforce non-decreasing quantiles (avoid crossing)
+        qs = np.maximum.accumulate(qs)
+
+        # 3) Handle outside range
+        if y <= qs[0]:
+            u[i] = taus[0]
+            continue
+        if y >= qs[-1]:
+            u[i] = taus[-1]
+            continue
+
+        # 4) Find interval qs[k-1] <= y <= qs[k]
+        idx = np.searchsorted(qs, y)
+        if idx == 0:
+            # Shouldn't happen due to y <= qs[0] check, but guard anyway
+            u[i] = taus[0]
+            continue
+        if idx >= Q:
+            # Shouldn't happen due to y >= qs[-1] check, but guard anyway
+            u[i] = taus[-1]
+            continue
+
+        q_low, q_high = qs[idx - 1], qs[idx]
+        tau_low, tau_high = taus[idx - 1], taus[idx]
+
+        if q_high == q_low:
+            # Degenerate case: quantiles equal; fall back to mid-τ
+            u[i] = 0.5 * (tau_low + tau_high)
+        else:
+            frac = (y - q_low) / (q_high - q_low)
+            u[i] = tau_low + frac * (tau_high - tau_low)
+
+    return u
+
+
+def initial_compute_pit_from_quantiles(y_true, q_preds, quantiles):
+    """
+    Compute PIT values using piecewise linear interpolation in (τ, q̂τ(x)) space.
+
+    y_true: (N,)
+    q_preds: (N, Q) predicted quantiles for each sample
+    quantiles: (Q,)
+    Returns: u: (N,) PIT values in [0,1]
+    """
+    y_true = np.asarray(y_true).reshape(-1)
+    q_preds = np.asarray(q_preds)
+    taus = np.asarray(quantiles)
+    print("### shapes ###")
+    print(y_true.shape)
+    print(q_preds.shape)
+    print(taus.shape)
+
     N, Q = q_preds.shape
     assert Q == len(taus)
 
     u = np.zeros(N, dtype=float)
-
+    print("N:", N)
     for i in range(N):
         y = y_true[i]
         qs = q_preds[i, :]
@@ -697,7 +799,7 @@ def plot_pit_histogram(u, bins=20, ax=None, title=""):
 
     # Pinball/Quantile Loss
 
-def pinball_loss_multi_np(y_true, y_pred, quantiles):
+def initial_pinball_loss_multi_np(y_true, y_pred, quantiles):
     """
     Pinball loss for multiple quantiles.
 
@@ -708,12 +810,46 @@ def pinball_loss_multi_np(y_true, y_pred, quantiles):
     y_true = np.asarray(y_true).reshape(-1, 1)    # (N,1)
     y_pred = np.asarray(y_pred)                  # (N,Q)
     taus = np.asarray(quantiles).reshape(1, -1)  # (1,Q)
-
+    print("Taus:", taus)
+    print("Nans in y_true:", np.isnan(y_true).any())
+    print("Nans in y_pred:", np.isnan(y_pred).any())
     e = y_true - y_pred                          # (N,Q)
 
     loss = np.maximum(taus * e, (taus - 1.0) * e)  # (N,Q)
 
     return loss.mean()   # scalar
+
+
+def pinball_loss_multi_np(y_true, y_pred, quantiles):
+    """
+    Pinball loss for multiple quantiles, skipping samples where y_true is NaN.
+
+    y_true: array (N,)
+    y_pred: array (N, Q)
+    quantiles: list/array of Q quantile levels
+    """
+
+    # Convert to numpy
+    y_true = np.asarray(y_true).reshape(-1)
+    y_pred = np.asarray(y_pred)
+    taus = np.asarray(quantiles).reshape(1, -1)
+
+    # ---- 1) Mask out NaNs in y_true ----
+    mask = ~np.isnan(y_true)
+    y_true = y_true[mask].reshape(-1, 1)   # shape (N_clean, 1)
+    y_pred = y_pred[mask]                  # shape (N_clean, Q)
+
+    # Optional debugging
+    # print("Remaining samples:", y_true.shape[0])
+    # print("Any NaNs in y_pred after masking:", np.isnan(y_pred).any())
+
+    # ---- 2) Compute pinball loss ----
+    e = y_true - y_pred                     # (N_clean, Q)
+    loss = np.maximum(taus * e, (taus - 1.0) * e)
+
+    return loss.mean()
+
+
 
 
 def pinball_loss_per_quantile_np(y_true, y_pred, quantiles):
@@ -752,6 +888,45 @@ def pinball_loss_matrix(y_true, q_preds, taus):
     return loss
 
 def crps_from_quantiles(y_true, q_preds, taus):
+    """
+    Approximate CRPS from quantile regression outputs via:
+        CRPS ≈ ∫_0^1 ρ_τ(y - q_τ) dτ  (discretized in τ)
+
+    y_true: (N,)
+    q_preds: (N, Q)
+    taus: (Q,)
+    Returns:
+        crps_mean: scalar (mean CRPS over all NON-NaN samples)
+        crps_per_sample: (N_clean,) CRPS per cleaned sample
+    """
+
+    # ---- 1) Convert to arrays ----
+    y_true = np.asarray(y_true).reshape(-1)
+    q_preds = np.asarray(q_preds)
+    taus = np.asarray(taus)
+
+    # ---- 2) Mask out rows where y_true is NaN ----
+    mask = ~np.isnan(y_true)
+    y_true = y_true[mask]                   # shape (N_clean,)
+    q_preds = q_preds[mask]                 # shape (N_clean, Q)
+
+    # ---- 3) Sort taus and reorder predictions ----
+    sort_idx = np.argsort(taus)
+    taus_sorted = taus[sort_idx]            # (Q,)
+    q_sorted = q_preds[:, sort_idx]         # (N_clean, Q)
+
+    # ---- 4) Compute pinball loss matrix ----
+    loss_mat = pinball_loss_matrix(y_true, q_sorted, taus_sorted)  # (N_clean, Q)
+
+    # ---- 5) Trapezoidal integration over τ ----
+    crps_per_sample = np.trapezoid(loss_mat, x=taus_sorted, axis=1)  # (N_clean,)
+
+    crps_mean = crps_per_sample.mean()
+
+    return crps_mean, crps_per_sample
+
+
+def initial_crps_from_quantiles(y_true, q_preds, taus):
     """
     Approximate CRPS from quantile regression outputs via:
         CRPS ≈ ∫_0^1 ρ_τ(y - q_τ) dτ  (discretized in τ)

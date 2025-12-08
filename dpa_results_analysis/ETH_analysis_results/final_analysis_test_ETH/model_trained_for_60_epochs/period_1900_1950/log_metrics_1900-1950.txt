@@ -1,0 +1,18 @@
+=== Current Time: 2025-10-13 19:18:07 ===
+quantiles: tensor([0.0000, 0.0500, 0.1000, 0.1500, 0.2000, 0.2500, 0.3000, 0.3500, 0.4000,
+        0.4500, 0.5000, 0.5500, 0.6000, 0.6500, 0.7000, 0.7500, 0.8000, 0.8500,
+        0.9000, 0.9500, 1.0000])
+Factual mean quantile differences (across all quantiles): 0.5315972566604614
+Factual 0.05-quantile differences: 0.4765109419822693
+Counterfactual mean quantile differences (across all quantiles): 1.4573895931243896
+Counterfactual 0.05-quantile differences: 1.2701724767684937
+Spatial mean factual autocorrelation difference: -0.13601616024971008
+Spatial mean counterfactual autocorrelation difference: -0.11296787112951279
+Factual Energy-Score spatial mean: 0.6800233125686646
+Factual S1-Score spatial mean: 1.2453508377075195
+Factual S2-Score spatial mean: 1.1306546926498413
+Counterfactual Energy-Score spatial mean: 1.1918723583221436
+Counterfactual S1-Score spatial mean: 1.7623265981674194
+Counterfactual S2-Score spatial mean: 1.1409084796905518
+Factual RI spatial mean: 0.25567910075187683
+Counterfactual RI spatial mean: 0.5287688970565796

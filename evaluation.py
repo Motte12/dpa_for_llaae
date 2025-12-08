@@ -121,7 +121,7 @@ def plot_dpa_time_series(true_t, dpa_ens, dpa_ens_mean, lat_min, lat_max, lon_mi
 
     year = plot_year
     temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label=f"{climate} Truth")
-    dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label=f"{climate} DPA ensmble mean")
+    dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label=f"{climate} DPA ensemble\nmean")
     
     # ADD COUNTERFACTUAL TEMPERATURE HERE
     #cf_temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label="CF Truth")
@@ -134,7 +134,7 @@ def plot_dpa_time_series(true_t, dpa_ens, dpa_ens_mean, lat_min, lat_max, lon_mi
         dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).time.values,   # x-axis values (datetime64)
         lower_env.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values,        # lower bound
         upper_env.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values,        # upper bound
-        color="tab:orange", alpha=0.2, label=f"+/- {n_stds} std"
+        color="tab:orange", alpha=0.2, label=f"+/- {n_stds} DPA ensemble standard\ndeviations"
     )
 
     

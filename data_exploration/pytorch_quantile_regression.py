@@ -12,7 +12,8 @@ import csv
 import json
 from datetime import datetime
 import argparse
-
+sys.path.append('/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder')
+import utils as ut
 
 class SmoothMultiQuantileLoss(nn.Module):
     def __init__(self, quantiles, delta: float = 1e-3):
@@ -336,6 +337,7 @@ def main():
     parser.add_argument("--learning_rate", type=float, default=1e-3)
     parser.add_argument("--n_epochs", type=int)
     parser.add_argument("--lambda_monotonic", type=float, default=0.0)
+    parser.add_argument("--standardize_predictors", type=int, default=0, help="Whether to still standardize predictors or not.")
     parser.add_argument("--save_path", type=str)
     #parser.add_argument("--", type=, default = )
     #parser.add_argument("--", type=, default = )
@@ -362,6 +364,12 @@ def main():
     
     # Load LE Z500 
     z500_le = xr.open_dataset(settings["dataset_z500"])
+    if args.standardize_predictors:
+        predictors_combined_le, _, _ = ut.standardize_numpy(z500_le.pseudo_pcs.values) 
+    else:
+        predictors_combined_le = z500_le.pseudo_pcs.values #xr.concat([gmt_le_expanded, z500_le.pseudo_pcs], dim="mode")
+
+
     print(z500_le)
     
     # load LE GMT
@@ -371,7 +379,6 @@ def main():
     
     # concatenate data 
     #gmt_le_expanded = gmt_le.TREFHT.expand_dims(mode=[-1]).T  # add 'mode' dimension with length 1
-    predictors_combined_le = z500_le.pseudo_pcs #xr.concat([gmt_le_expanded, z500_le.pseudo_pcs], dim="mode")
     predictors_combined_le
     #gmt_le_expanded
     
@@ -431,11 +438,11 @@ def main():
 
     # split 
     ## train
-    X_torch = torch.from_numpy(predictors_combined_le.values)[:90*4769, :]
+    X_torch = torch.from_numpy(predictors_combined_le)[:90*4769, :]
     y_torch = torch.from_numpy(trefht_le_ger_mean.values)[:90*4769]
 
     ## validation
-    X_val_torch = torch.from_numpy(predictors_combined_le.values)[90*4769:, :]
+    X_val_torch = torch.from_numpy(predictors_combined_le)[90*4769:, :]
     y_val_torch = torch.from_numpy(trefht_le_ger_mean.values)[90*4769:]
     
     print("X:", X_torch.shape)

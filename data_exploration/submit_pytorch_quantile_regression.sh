@@ -18,7 +18,7 @@ echo "Running from: $(pwd)"
 timestamp=$(date +"%Y-%m-%d_%H-%M")
 
 # Name prefix
-name="/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/baseline_quantile_regression/quantile_regression_ger_gradient_descent"
+name="/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/baseline_quantile_regression/v1_data_quantile_regression_ger_gradient_descent"
 
 # Create directory with timestamp
 dirname="${name}_${timestamp}"
@@ -29,9 +29,10 @@ echo "Created directory: $dirname"
 
 # Run the preprocessing script starting from line 72
 ~/.conda/envs/dpa/bin/python pytorch_quantile_regression.py \
-    --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/v2_dpa_train_settings.json" \
+    --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/v1_dpa_train_settings.json" \
     --delta 0.00001 \
-    --n_epochs 1000 \
-    --save_path "$dirname/"
+    --n_epochs 200 \
+    --save_path "$dirname/" \
+    --standardize_predictors 1
 
 echo "Job finished at $(date)"

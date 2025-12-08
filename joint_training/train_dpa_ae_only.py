@@ -91,7 +91,7 @@ def main():
         settings = json.load(file)
     
     # create save directory
-    save_dir = f"{settings['output_dir']}_{latent_dim}_{num_layers}_{hidden_dim}_{noise_dim_dec}_{in_dim_lm}_{noise_dim_lm}_{num_layers_lm}_{hidden_dim_lm}_encoderis{encoder}_lambda{lam}_bs{batch_size}/"
+    save_dir = f"{settings['output_dir']}autoencode_only_{latent_dim}_{num_layers}_{hidden_dim}_{noise_dim_dec}_{in_dim_lm}_{noise_dim_lm}_{num_layers_lm}_{hidden_dim_lm}_encoderis{encoder}_lambda{lam}_bs{batch_size}/"
     
     # create directory
     os.makedirs(save_dir, exist_ok=True)
