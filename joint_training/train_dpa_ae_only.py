@@ -4,15 +4,15 @@ import os
 import random
 import matplotlib.pyplot as plt
 from IPython.display import display, clear_output
-from torchvision.utils import make_grid
+#from torchvision.utils import make_grid
 from engression.models import StoNet, StoLayer
 from engression.loss_func import energy_loss_two_sample
 import argparse
 import json
 import xarray as xr
 import torch.nn as nn
-from sklearn.manifold import TSNE
-import pca_encoder as pcae
+#from sklearn.manifold import TSNE
+#import pca_encoder as pcae
 
 
 import numpy as np
@@ -20,7 +20,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import shutil
 import sys
-sys.path.append('/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder')
+sys.path.append('../')
 import utils as ut
 
 def main():
@@ -136,8 +136,8 @@ def main():
     print("Dataset:", settings['dataset_trefht'])
 
     # set train/test split
-    ds_train = ds.isel(time=slice(0, 4769 * 90)) #4769 * 80
-    ds_test = ds.isel(time=slice(4769 * 90, 476900)) #4769 * 80
+    ds_train = ds.isel(time=slice(0, 4769 * 10)) #4769 * 80
+    ds_test = ds.isel(time=slice(4769 * 10, 476900)) #4769 * 80
 
     print(ds_train.TREFHT.shape)
     print(ds_test.TREFHT.shape)

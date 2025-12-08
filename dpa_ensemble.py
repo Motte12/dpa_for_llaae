@@ -1,5 +1,5 @@
 import torch
-from torchvision.utils import make_grid
+#from torchvision.utils import make_grid
 from torch.utils.data import TensorDataset, DataLoader
 import torch.nn as nn
 
@@ -12,7 +12,7 @@ import random
 import matplotlib.pyplot as plt
 import argparse
 import json
-from sklearn.manifold import TSNE
+#from sklearn.manifold import TSNE
 import numpy as np
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -30,7 +30,9 @@ def load_test_data(settings_file_path, standardize_predictors=0):
     ds = xr.open_dataset(settings['dataset_trefht'])
     
     # set train/test split
-    ds_train = ds.isel(time=slice(0, 20*4769)) # larger than 20 will likely get too data heavy
+
+    ds_train = ds.isel(time=slice(0, 10*4769)) 
+
     ds_test = ds.isel(time=slice(90*4769, 476900))
     
     # transform to torch tensors
@@ -192,6 +194,10 @@ def create_dpa_model(device,
     print(f"Total latent map parameters: {total_params2:,}")
     
     
+<<<<<<< HEAD
+=======
+    #sys.exit()
+>>>>>>> origin/joint_dpa
     return model_enc, model_dec, model_pred
 
 def create_ensemble(ensemble_type,
@@ -231,7 +237,8 @@ def create_ensemble(ensemble_type,
     elif ensemble_type == "ETH":
         z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf = load_eth_test_data(settings_file_path, standardize_predictors)
         #z500_test, mask, ds_test, x_te_reduced, x_te_reduced_cf = load_eth_test_data() # x_te_reduced is x_te_reduced_eth_fact
-        
+    print("ds_train:", ds_train)
+    #sys.exit()
         # z500_standardized, mask_x_te_eth_fact, ds_test_eth_fact, x_te_reduced_eth_fact, x_te_reduced_eth_cf
     print("Data loaded")
     # create model
@@ -272,6 +279,12 @@ def create_ensemble(ensemble_type,
                 torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
 
     if create_train_ensemble:
+        if autoencode:
+            print("Autoencoding factual LE train set ...")
+            for i in range(1, ensemble_size+1):
+                gen_te = model_dec(model_enc(x_tr_reduced.to(device).float()))
+                torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
+        else:
             for i in range(1, ensemble_size+1):
                 gen_te = model_dec(model_pred(z500_train.to(device).float()))
                 torch.save(gen_te, f"{save_path}/gen{i}_te.pt")
@@ -490,7 +503,7 @@ def create_ensemble_1d(ensemble_type,
 
     if ensemble_type == "ETH":
         ds_train = "no ds_train present"
-
+    print("ds_train:", ds_train)
     return mask, ds_train, ds_test, x_te_reduced
 
     

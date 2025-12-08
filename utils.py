@@ -4,14 +4,14 @@ import os
 import random
 import matplotlib.pyplot as plt
 from IPython.display import display, clear_output
-from torchvision.utils import make_grid
+#from torchvision.utils import make_grid
 from engression.models import StoNet, StoLayer
 from engression.loss_func import energy_loss_two_sample
 import argparse
 import json
 import xarray as xr
 import torch.nn as nn
-from sklearn.manifold import TSNE
+#from sklearn.manifold import TSNE
 
 import numpy as np
 import cartopy.crs as ccrs
@@ -347,6 +347,31 @@ def load_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, no_epoch
     
 
     return tensor_list, tensor_list_raw, stacked, stacked_reshaped, ds
+
+def load_dpa_arrays_local(path, mask, ds_coords, ens_members, save_path=None, no_epochs="not_specified"):
+    #file_list = sorted(f for f in os.listdir(path) if f.endswith(".pt"))
+
+
+    print("Now loading DPA ensemble restored including nans")
+    tensor_list_raw = [torch.load(f"{path}gen{i}_te.pt", map_location=torch.device('cpu')) for i in range(1,ens_members+1)] #98 #this is loading raw arrays without nans
+    print("Tensor list raw length:", len(tensor_list_raw))
+    print("Tensor list raw elements shape:", tensor_list_raw[0].shape)
+    stacked_raw = torch.stack(tensor_list_raw)  # shape: (N, T, H, W)
+    stacked_reshaped_raw = stacked_raw.reshape(stacked_raw.shape[0], stacked_raw.shape[1], stacked_raw.shape[2])
+    print((stacked_raw.shape[0], stacked_raw.shape[1], stacked_raw.shape[2]))
+
+
+    
+    
+    if save_path is not None:
+        # save to zarr
+        #ds_raw.to_zarr(f"{save_path}/raw_dpa_ens_100_dataset_restored.zarr", consolidated=True, encoding={"TREFHT": {"_FillValue": None}})
+        ds_raw.to_netcdf(f"{save_path}/raw_dpa_ens_{no_epochs}_dataset_restored.nc", format="NETCDF4")
+        
+    
+    
+
+    return tensor_list_raw
 
 def load_both_dpa_arrays(path, mask, ds_coords, ens_members, save_path=None, no_epochs="not_specified", climate_list=[]):
     '''
