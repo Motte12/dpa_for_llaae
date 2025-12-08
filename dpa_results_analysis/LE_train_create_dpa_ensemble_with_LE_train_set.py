@@ -7,7 +7,7 @@
 ## 4) create .nc array containing results
 
 import torch
-from torchvision.utils import make_grid
+#from torchvision.utils import make_grid
 from torch.utils.data import TensorDataset, DataLoader
 import torch.nn as nn
 
@@ -20,7 +20,7 @@ import random
 import matplotlib.pyplot as plt
 import argparse
 import json
-from sklearn.manifold import TSNE
+#from sklearn.manifold import TSNE
 import numpy as np
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -28,7 +28,7 @@ import shutil
 import argparse
 
 import sys
-sys.path.append('/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder')
+sys.path.append('../')
 import dpa_ensemble as de
 import utils as ut
 import evaluation

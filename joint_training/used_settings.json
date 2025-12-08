@@ -1,11 +1,9 @@
 {
-    "output_dir": "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1_v2_data/",
-    "dataset_trefht": "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v2_starting16102025/europe_10percent_masked_stacked_TREFHT_JJA.nc",
-    "dataset_z500": "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v2_starting16102025/GMT_and_pseudoPCs_EOFs_Z500_5daily_100ensmembers_JJA_scaled.nc",
-    "GMT_LE": "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v2_starting16102025/stacked_GMT_weighted_ensemble_TREFHT_JJA.nc",
-    "dataset_z500_eth_test": "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v2_starting16102025/pseudoPCs_EOFs_ETH_130014001500Z500_5daily_100ensmembers_JJA_scaled.nc",
-    "dataset_trefht_eth_transient": "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v2_starting16102025/ETH_europe_10percent_masked_stacked_TREFHT_JJA.nc",
-    "gmt_eth": "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v2_starting16102025/gmt_jja_stacked_130014001500.nc",
-    "dataset_trefht_eth_nudged": "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v2_starting16102025/ETH_europe_10percent_masked_stacked_TREFHT_nudged_JJA.nc",
-    "dataset_trefht_eth_nudged_shifted": "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v2_starting16102025/ETH_europe_10percent_masked_stacked_TREFHT_nudged_JJA.nc"
+    "output_dir": "/Users/friederl/Documents/EcoN_project/LLAAE/dpa_output_data/autoencoder_only/",
+    "dataset_trefht": "/Users/friederl/Documents/EcoN_project/LLAAE/dpa_input_data/v1_until16102025/europe_10percent_masked_stacked_TREFHT_JJA.nc",
+    "dataset_z500": "/Users/friederl/Documents/EcoN_project/LLAAE/dpa_input_data/v1_until16102025/GMT_and_pseudoPCs_EOFs_Z500_5daily_100ensmembers_JJA_not_scaled.nc",
+    "dataset_z500_eth_test": "/Users/friederl/Documents/EcoN_project/LLAAE/dpa_input_data/v1_until16102025/GMT_and_pseudoPCs_EOFs_ETH130014001500_Z500_5daily_100ensmembers_JJA_not_scaled.nc",
+    "dataset_trefht_eth_transient": "/Users/friederl/Documents/EcoN_project/LLAAE/dpa_input_data/v1_until16102025/europe_10percent_masked_stacked_ETH_transient_TREFHT_JJA.nc",
+    "dataset_trefht_eth_nudged": "/Users/friederl/Documents/EcoN_project/LLAAE/dpa_input_data/v1_until16102025/europe_10percent_masked_stacked_ETH_nudged_TREFHT_JJA.nc",
+    "dataset_trefht_eth_nudged_shifted": "/Users/friederl/Documents/EcoN_project/LLAAE/dpa_input_data/v1_until16102025/europe_10percent_masked_stacked_ETH_nudged_shifted_TREFHT_JJA.nc"
 }

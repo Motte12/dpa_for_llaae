@@ -1,0 +1,9 @@
+{
+    "output_dir": "/Users/friederl/Documents/EcoN_project/LLAAE/dpa_output_data/autoencoder_only/",
+    "dataset_trefht": "/Users/friederl/Documents/EcoN_project/LLAAE/dpa_input_data/v1_until16102025/europe_10percent_masked_stacked_TREFHT_JJA.nc",
+    "dataset_z500": "/Users/friederl/Documents/EcoN_project/LLAAE/dpa_input_data/v1_until16102025/GMT_and_pseudoPCs_EOFs_Z500_5daily_100ensmembers_JJA_not_scaled.nc",
+    "dataset_z500_eth_test": "/Users/friederl/Documents/EcoN_project/LLAAE/dpa_input_data/v1_until16102025/GMT_and_pseudoPCs_EOFs_ETH130014001500_Z500_5daily_100ensmembers_JJA_not_scaled.nc",
+    "dataset_trefht_eth_transient": "/Users/friederl/Documents/EcoN_project/LLAAE/dpa_input_data/v1_until16102025/europe_10percent_masked_stacked_ETH_transient_TREFHT_JJA.nc",
+    "dataset_trefht_eth_nudged": "/Users/friederl/Documents/EcoN_project/LLAAE/dpa_input_data/v1_until16102025/europe_10percent_masked_stacked_ETH_nudged_TREFHT_JJA.nc",
+    "dataset_trefht_eth_nudged_shifted": "/Users/friederl/Documents/EcoN_project/LLAAE/dpa_input_data/v1_until16102025/europe_10percent_masked_stacked_ETH_nudged_shifted_TREFHT_JJA.nc"
+}
