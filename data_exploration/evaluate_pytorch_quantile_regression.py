@@ -216,7 +216,7 @@ def main():
     
     # Load Z500 data
     z500_test = xr.open_dataset(settings['dataset_z500_eth_test']).pseudo_pcs
-    if args.data_version == "v1":
+    if args.data_version == "v1" or args.data_version == "v4":
         print("v1 data, still standardized here")
         z500_test_np, _, _ = ut.standardize_numpy(z500_test.values)
     else:

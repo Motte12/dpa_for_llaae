@@ -1,0 +1,8 @@
+{
+"output_dir": "/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/v4_model/",
+"dataset_trefht": "/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v4_starting08122025/europe_10percent_masked_stacked_TREFHT_JJA_v3.nc",
+"dataset_z500": "/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v4_starting08122025/LE_GMT_and_pseudoPCs_EOFs_Z500_5daily_100ensmembers_JJA_not_scaled.nc",
+"dataset_trefht_eth_transient": "/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v4_starting08122025/ETH_europe_10percent_masked_stacked_TREFHT_JJA_v3.nc",
+"dataset_trefht_eth_nudged_shifted": "/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v4_starting08122025/ETH_europe_10percent_masked_stacked_TREFHT_nudged_JJA_v3.nc",
+"dataset_z500_eth_test": "/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v4_starting08122025/ETH_GMT_and_pseudoPCs_EOFs_Z500_5daily_100ensmembers_JJA_not_scaled.nc"
+}

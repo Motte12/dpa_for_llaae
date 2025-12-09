@@ -193,11 +193,7 @@ def create_dpa_model(device,
     total_params2 = sum(p.numel() for p in model_pred.parameters())
     print(f"Total latent map parameters: {total_params2:,}")
     
-    
-<<<<<<< HEAD
-=======
-    #sys.exit()
->>>>>>> origin/joint_dpa
+
     return model_enc, model_dec, model_pred
 
 def create_ensemble(ensemble_type,

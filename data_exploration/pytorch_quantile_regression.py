@@ -364,11 +364,12 @@ def main():
     
     # Load LE Z500 
     z500_le = xr.open_dataset(settings["dataset_z500"])
-    if args.standardize_predictors:
-        predictors_combined_le, _, _ = ut.standardize_numpy(z500_le.pseudo_pcs.values) 
-    else:
-        predictors_combined_le = z500_le.pseudo_pcs.values #xr.concat([gmt_le_expanded, z500_le.pseudo_pcs], dim="mode")
+    #if args.standardize_predictors:
+    #    predictors_combined_le, _, _ = ut.standardize_numpy(z500_le.pseudo_pcs.values) 
+    #else:
+    #    predictors_combined_le = z500_le.pseudo_pcs.values #xr.concat([gmt_le_expanded, z500_le.pseudo_pcs], dim="mode")
 
+    predictors_combined_le = z500_le.pseudo_pcs.values
 
     print(z500_le)
     
@@ -398,7 +399,6 @@ def main():
     #gmt_eth_expanded = gmt_eth.TREFHT.expand_dims(mode=[-1]).T  # add 'mode' dimension with length 1
     predictors_combined_eth = z500_eth.pseudo_pcs #xr.concat([gmt_eth_expanded, z500_eth.pseudo_pcs], dim="mode")
     predictors_combined_eth
-    
     # germany domain 
     ### Germany ###
         
@@ -437,18 +437,35 @@ def main():
 
 
     # split 
-    ## train
-    X_torch = torch.from_numpy(predictors_combined_le)[:90*4769, :]
-    y_torch = torch.from_numpy(trefht_le_ger_mean.values)[:90*4769]
 
-    ## validation
-    X_val_torch = torch.from_numpy(predictors_combined_le)[90*4769:, :]
-    y_val_torch = torch.from_numpy(trefht_le_ger_mean.values)[90*4769:]
+    if args.standardize_predictors:
+        ###
+        ## train
+        train_predictors, _, _ = ut.standardize_numpy(predictors_combined_le[:90*4769, :])
+        X_torch = torch.from_numpy(train_predictors)
+        y_torch = torch.from_numpy(trefht_le_ger_mean.values)[:90*4769]
+    
+        ## validation
+        validation_predictors, _, _ = ut.standardize_numpy(predictors_combined_le[90*4769:, :])
+        X_val_torch = torch.from_numpy(validation_predictors)
+        y_val_torch = torch.from_numpy(trefht_le_ger_mean.values)[90*4769:]
+    
+    else:
+        ## train
+        X_torch = torch.from_numpy(predictors_combined_le)[:90*4769, :]
+        y_torch = torch.from_numpy(trefht_le_ger_mean.values)[:90*4769]
+    
+        ## validation
+        X_val_torch = torch.from_numpy(predictors_combined_le)[90*4769:, :]
+        y_val_torch = torch.from_numpy(trefht_le_ger_mean.values)[90*4769:]
+
+    
     
     print("X:", X_torch.shape)
     print("y:", y_torch.shape)
 
-    #sys.exit()
+    print("X_val:", X_val_torch.shape)
+    print("y_val:", y_val_torch.shape)
     
     # Example fake data ##############################################
     #n_samples = 476900
