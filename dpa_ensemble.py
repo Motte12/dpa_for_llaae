@@ -45,17 +45,25 @@ def load_test_data(settings_file_path, standardize_predictors=0):
 
     ### Load Z500 data ###
     ds_z500_pre = xr.open_dataset(settings['dataset_z500'])
+    ds_z500_train=ds_z500_pre.isel(time=slice(0,(4769 * 10)))
+    ds_z500_test=ds_z500_pre.isel(time=slice(int(90*4769),476900))
+    
     if standardize_predictors:
-        ds_z500, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values) # data is already standardized
+        z500_train_pre, _, _ = ut.standardize_numpy(ds_z500_train.pseudo_pcs.values) # data is already standardized
+        z500_test_pre, _, _ = ut.standardize_numpy(ds_z500_test.pseudo_pcs.values) 
+        z500_train = torch.from_numpy(z500_train_pre)
+        z500_test = torch.from_numpy(z500_test_pre)
+
     else:
-        ds_z500 = ds_z500_pre.pseudo_pcs.values
-    print("z500 dataset shape", ds_z500.shape)
-    z500 = torch.from_numpy(ds_z500)
-    print("z500 shape", z500.shape)
+        #ds_z500 = ds_z500_pre.pseudo_pcs.values
+        z500_train = ds_z500_train.pseudo_pcs.values
+        z500_test = ds_z500_test.pseudo_pcs.values
     
     
-    z500_train = z500[0:int(4769 * 20),:]
-    z500_test = z500[int(90*4769):476900,:]
+    
+    
+    #z500_train = z500[0:int(4769 * 10),:]
+    #z500_test = z500[int(90*4769):476900,:]
     
     return z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced
 
@@ -233,7 +241,7 @@ def create_ensemble(ensemble_type,
     elif ensemble_type == "ETH":
         z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf = load_eth_test_data(settings_file_path, standardize_predictors)
         #z500_test, mask, ds_test, x_te_reduced, x_te_reduced_cf = load_eth_test_data() # x_te_reduced is x_te_reduced_eth_fact
-    print("ds_train:", ds_train)
+    #print("ds_train:", ds_train)
     #sys.exit()
         # z500_standardized, mask_x_te_eth_fact, ds_test_eth_fact, x_te_reduced_eth_fact, x_te_reduced_eth_cf
     print("Data loaded")

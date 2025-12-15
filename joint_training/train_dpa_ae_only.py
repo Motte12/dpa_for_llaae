@@ -52,7 +52,7 @@ def main():
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate')
     parser.add_argument('--batch_size', type=int, default=128, help='Batch size')
     parser.add_argument('--epochs', type=int, default=200, help='Number of training epochs')
-    parser.add_argument('--batch_norm', type=bool, default="False", help='Whether to use batch normalisation')
+    parser.add_argument('--batch_norm', type=int, default=0, help='Whether to use batch normalisation.')
 
     ## Loss
     parser.add_argument('--lam', type=float, default=1.0, help="Weight between energy loss in Y and latent space")
@@ -79,7 +79,7 @@ def main():
     beta=1
 
     # train settings
-    bn = args.batch_norm
+    bn = bool(args.batch_norm)
     batch_size=args.batch_size
     #include_KL = args.include_KL
     lam = args.lam
@@ -91,7 +91,7 @@ def main():
         settings = json.load(file)
     
     # create save directory
-    save_dir = f"{settings['output_dir']}autoencode_only_{latent_dim}_{num_layers}_{hidden_dim}_{noise_dim_dec}_{in_dim_lm}_{noise_dim_lm}_{num_layers_lm}_{hidden_dim_lm}_encoderis{encoder}_lambda{lam}_bs{batch_size}/"
+    save_dir = f"{settings['output_dir']}autoencode_only_{latent_dim}_{num_layers}_{hidden_dim}_{noise_dim_dec}_{in_dim_lm}_{noise_dim_lm}_{num_layers_lm}_{hidden_dim_lm}_encoderis{encoder}_lambda{lam}_bs{batch_size}_bnis{bn}/"
     
     # create directory
     os.makedirs(save_dir, exist_ok=True)

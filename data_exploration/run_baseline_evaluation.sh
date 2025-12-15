@@ -6,12 +6,34 @@
 ######################
 ### StoNet V1 Data ###
 ######################
+#python evaluate_pytorch_quantile_regression.py \
+#    --model_path /work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/baseline_quantile_regression/v4_data_quantile_regression_ger_gradient_descent_2025-12-08_14-39/ \
+#    --results_save_path eval_results/ \
+#    --compare_model /work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/StoNet/v4_data_1d_ger_trained_30_epochs_predictions_dataset.nc \
+#    --data_version v4 \
+#    --one_dimensional_ger 1
+
+###############
+### V4 Data ###
+###############
+#python evaluate_pytorch_quantile_regression.py \
+#    --model_path /work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/baseline_quantile_regression/v4_data_quantile_regression_ger_gradient_descent_2025-12-08_14-39/ \
+#    --results_save_path eval_results/ \
+#    --compare_model /work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/v4_model/_50_6_50_5_1001_20_2_50_encoderislearnable_lambda0.5_bs128_bnisTrue/dpa_ensemble_after_20_epochs/eth_ensemble_after_20_epochs/ETH_gen_dpa_ens_20_dataset_restored.nc \
+#    --data_version v4 \
+#    --one_dimensional_ger 0
+
+
+#######################
+### Autoencode only ###
+#######################
 python evaluate_pytorch_quantile_regression.py \
     --model_path /work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/baseline_quantile_regression/v4_data_quantile_regression_ger_gradient_descent_2025-12-08_14-39/ \
     --results_save_path eval_results/ \
-    --compare_model /work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/StoNet/v4_data_1d_ger_trained_30_epochs_predictions_dataset.nc \
+    --compare_model /work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/v4_model/autoencode_only_50_6_50_5_1001_20_2_50_encoderislearnable_lambda0.5_bs128_bnisFalse/dpa_ensemble_after_100_epochs/eth_ensemble_after_100_epochs/ETH_gen_dpa_ens_100_dataset_restored.nc \
     --data_version v4 \
-    --one_dimensional_ger 1
+    --one_dimensional_ger 0
+
 
 ###############
 ### V1 Data ###

@@ -56,6 +56,7 @@ def main():
 
     ## Loss
     parser.add_argument('--lam', type=float, default=1.0, help="Weight between energy loss in Y and latent space")
+    parser.add_argument('--alpha', type=float, default=1.0, help="Weight between AE reconstruction energy loss and energy loss of d(lm(X)) in Y ")
     #parser.add_argument('--include_KL', type=bool, default="False", help='Whether to include KL loss')
 
     # Parse arguments
@@ -70,7 +71,7 @@ def main():
     num_layers = args.num_layer
     hidden_dim = args.hidden_dim
     noise_dim_dec = args.noise_dim_dec
-    out_act = None#args.out_activation
+    out_act = None #args.out_activation
     resblock = bool(args.resblock)
     print("resblock:", resblock)
 
@@ -89,16 +90,19 @@ def main():
     lr = args.lr
     training_epochs=args.epochs
 
-
+    
+    
     with open(settings_file_path, 'r') as file:
         settings = json.load(file)
     
     # create save directory
-    save_dir = f"{settings['output_dir']}_{latent_dim}_{num_layers}_{hidden_dim}_{noise_dim_dec}_{in_dim_lm}_{noise_dim_lm}_{num_layers_lm}_{hidden_dim_lm}_encoderis{encoder}_lambda{lam}_bs{batch_size}_bnis{bn}/"
+    save_dir = f"{settings['output_dir']}_{latent_dim}_{num_layers}_{hidden_dim}_{noise_dim_dec}_{in_dim_lm}_{noise_dim_lm}_{num_layers_lm}_{hidden_dim_lm}_encoderis{encoder}_lambda{lam}_alpha{args.alpha}_bs{batch_size}_bnis{bn}/"
     
     # create directory
     os.makedirs(save_dir, exist_ok=True)
     print("save_directory:", save_dir)
+
+    
 
     # save this script for logging info
     # Path to this script
@@ -149,32 +153,51 @@ def main():
     x_te = ut.data_to_torch(ds_test, "TREFHT")
     
     # load Z500
-    ds_z500_pre = xr.open_dataset(settings['dataset_z500'])
+    ###
+    # Load LE Z500 
+    z500_le = xr.open_dataset(settings["dataset_z500"])
+    predictors_combined_le = z500_le.pseudo_pcs.values
+
+    #z500_eth = xr.open_dataset(settings['dataset_z500_eth_test'])
+    #predictors_combined_eth = z500_eth.pseudo_pcs.values 
+
+    ## train
+    train_predictors, _, _ = ut.standardize_numpy(predictors_combined_le[:90*4769, :])
+    X_torch = torch.from_numpy(train_predictors)
+
+    ## validation
+    validation_predictors, _, _ = ut.standardize_numpy(predictors_combined_le[90*4769:, :])
+    X_val_torch = torch.from_numpy(validation_predictors)
+
+
+
+    ###
+    #ds_z500_pre = xr.open_dataset(settings['dataset_z500'])
 
     # Z500 not standardized yet
     #ds_z500, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values) 
 
     # Z500 already standardized
-    ds_z500 = ds_z500_pre.pseudo_pcs.values #ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values)
-    print("z500 shape", ds_z500.shape)
-    z500 = torch.from_numpy(ds_z500)
-    print("z500 shape", z500.shape)
+    #ds_z500 = ds_z500_pre.pseudo_pcs.values #ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values)
+    #print("z500 shape", ds_z500.shape)
+    #z500 = torch.from_numpy(ds_z500)
+    #print("z500 shape", z500.shape)
     
     
-    z500_train = z500[:int(4769 * 90),:]
-    z500_test = z500[int(4769 * 90):,:]
+    #z500_train = z500[:int(4769 * 90),:]
+    #z500_test = z500[int(4769 * 90):,:]
 
-    # remove NaNs from data
+    # remove NaNs from Temperature data
     x_tr_reduced, mask_x_tr = ut.remove_nan_columns(x_tr)
     x_te_reduced, mask_x_te = ut.remove_nan_columns(x_te)
 
     # create data loader Temperature
-    train_dataset = TensorDataset(z500_train, x_tr_reduced)
+    train_dataset = TensorDataset(X_torch, x_tr_reduced)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
     print(f"Number of batches: {len(train_loader)}")
     
     # create test loader Temperature
-    test_dataset = TensorDataset(z500_test, x_te_reduced)
+    test_dataset = TensorDataset(X_val_torch, x_te_reduced) # test is actually validation
     test_loader_in = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     print(f"Number of batches: {len(test_loader_in)}")
 
@@ -224,8 +247,8 @@ def main():
     
     # print model state dict
     print("MODEL INITIALISATION")
-    for name, tensor in model_enc.state_dict().items():
-        print(f"{name}: {tensor.shape}")
+    #for name, tensor in model_enc.state_dict().items():
+    #    print(f"{name}: {tensor.shape}")
     
     # set one combined or individual optimizers
     #optimizer = torch.optim.Adam(list(model_enc.parameters()) + list(model_dec.parameters()) + list(model_pred.parameters()), lr=lr)
@@ -245,6 +268,12 @@ def main():
     # training settings
     print_every_nepoch = 1
     plot_every_epoch = 5    
+    
+    # log file setup
+    # write all args to a json file (for logs)
+    log_file_settings_name = os.path.join(save_dir, 'model_and_train_settings.json')
+    with open(log_file_settings_name, "w", encoding="utf-8") as f:
+        json.dump(vars(args), f, indent=2, sort_keys=True)
     
     # log file
     log_file_name = os.path.join(save_dir, 'log.txt')
@@ -375,7 +404,7 @@ def main():
             
             # welchen der beiden folgenden losses nutzen?
             # loss = loss_pred 
-            loss = loss + loss_pred
+            loss = loss + args.alpha * loss_pred
                 
             loss.backward()
             
@@ -565,7 +594,8 @@ def main():
         ##################
         # comment out for tuning
         if (epoch_idx + 1) % 10 == 0:
-            torch.save(model_enc.state_dict(), save_dir + "model_enc_" + str(epoch_idx + 1) + ".pt")
+            if args.encoder == "learnable":
+                torch.save(model_enc.state_dict(), save_dir + "model_enc_" + str(epoch_idx + 1) + ".pt")
             torch.save(model_dec.state_dict(), save_dir + "model_dec_" + str(epoch_idx + 1) + ".pt")
             torch.save(model_pred.state_dict(), save_dir + "model_pred_" + str(epoch_idx + 1) + ".pt")
 

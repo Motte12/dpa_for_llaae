@@ -78,7 +78,7 @@ for i in "${!period_start_years[@]}"; do
     echo "Running analysis for period ${start}-${end}"
     echo "Epochs: ${NO_EPOCHS}"
 
-    srun -N1 -n1 python3 analysis_results_sheet_ETH_master.py \
+    python3 analysis_results_sheet_ETH_master_slim.py \
         --period_start $start \
         --period_end $end \
         --ensemble_path $ensemble_save_path \
