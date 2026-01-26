@@ -148,7 +148,7 @@ def main():
 
     print("Autoencode only:", args.autoencode_only)
     # create_ensemble() saves ensemble and return mask
-    mask, ds_train, ds_test, x_te_reduced = de.create_ensemble(ensemble_type="ETH",
+    mask, ds_train, ds_test, x_te_reduced = de.create_ensemble(ensemble_type="ETH", #"ETH"
                                     ensemble_size=ens_members,
                                     save_path=save_path_ensemble_single,
                                     device=device,
@@ -183,7 +183,7 @@ def main():
                                                                     ens_members=ens_members,
                                                                     save_path=f"{save_path_ensemble_single}",
                                                                     no_epochs=args.no_epochs,
-                                                                    climate_list=["gen", "cf_gen"]
+                                                                    climate_list=["gen", "cf_gen"], #, "cf_gen"]
                                                                     )
 
 if __name__ == "__main__":

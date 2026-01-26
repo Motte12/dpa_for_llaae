@@ -1,0 +1,16 @@
+=== Current Time: 2025-12-17 01:21:03 ===
+=== Quantiles ===
+coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.042392112636512075
+095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.09231702171172357
+counterfactual coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.14996036396347742
+counterfactual 095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.04720690553790896
+all quantiles mean MAE across test members (ETH 1300,1400,1500): 0.19294221699237823
+099 quantile mean MAE across test members (ETH 1300,1400,1500): 0.3183014690876007
+counterfactual, all quantiles mean MAE across test members (ETH 1300,1400,1500): 1.3100755214691162
+counterfactual, 099 quantile mean MAE across test members (ETH 1300,1400,1500): 3.8177218437194824
+coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.06325827522190118
+095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.13043323780899788
+counterfactual coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.14996036396347742
+counterfactual 095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.04720690553790896
+Spatial mean factual autocorrelation difference: -0.18376173079013824
+Spatial mean counterfactual autocorrelation difference: 0.09244926273822784

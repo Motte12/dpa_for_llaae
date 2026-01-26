@@ -70,9 +70,9 @@ if (( SLURM_ARRAY_TASK_ID < 0 || SLURM_ARRAY_TASK_ID >= num_configs )); then
   exit 1
 fi
 
-########################
+#################################
 # 3) Extract config for this task
-########################
+#################################
 
 IFS=',' read -r ld enc hdn nln ndd hdl ndl lambd alph\
   <<< "${configs[$SLURM_ARRAY_TASK_ID]}"

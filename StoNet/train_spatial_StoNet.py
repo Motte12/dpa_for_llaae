@@ -165,10 +165,11 @@ def main():
     X_val_torch = torch.from_numpy(validation_predictors)
 
     ## test
-    test_predictors, _, _ = ut.standardize_numpy(predictors_combined_eth)
+    test_predictors, mean_z500_test, std_test_500 = ut.standardize_numpy(predictors_combined_eth)
     X_test_torch = torch.from_numpy(test_predictors)
 
-
+    print("Z500 test mean and std:", mean_z500_test[0,1000], std_test_500[0,1000])
+    #sys.exit()
 
     ###
     #ds_z500_pre = xr.open_dataset(settings['dataset_z500'])
@@ -230,11 +231,23 @@ def main():
     
     
     
-    # create test ensemble
+    # create factual test ensemble
     y_pred_standardized = engressor.sample(X_test_torch, sample_size=100)
-
+    
     # save test ensemble
-    torch.save(y_pred_standardized, f"{save_dir}{training_epochs}_epochs_trained_engressor_predicted_ensemble.pt")
+    torch.save(y_pred_standardized, f"{save_dir}factual_{training_epochs}_epochs_trained_engressor_predicted_ensemble.pt")
+
+    # create counterfactual test ensemble
+    cf_gmt = (0 - mean_z500_test[0,1000]) / std_test_500[0,1000]
+    print("Counterfactual GMT value:", cf_gmt)
+    X_cf_test_torch = X_test_torch.clone()
+    X_cf_test_torch[:,-1] = torch.from_numpy(np.array([cf_gmt]))
+    y_pred_cf_standardized = engressor.sample(X_cf_test_torch, sample_size=100)
+    torch.save(y_pred_cf_standardized, f"{save_dir}cf_{training_epochs}_epochs_trained_engressor_predicted_ensemble.pt")
+
+    
+    # save test ensemble
+    #torch.save(y_pred_standardized, f"{save_dir}{training_epochs}_epochs_trained_engressor_predicted_ensemble.pt")
 
 
 

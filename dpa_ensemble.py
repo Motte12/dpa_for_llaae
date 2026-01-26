@@ -45,6 +45,9 @@ def load_test_data(settings_file_path, standardize_predictors=0):
 
     ### Load Z500 data ###
     ds_z500_pre = xr.open_dataset(settings['dataset_z500'])
+    pi_period_mean = ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time=slice("1850","1900")).mean().values
+    print("PI ref mean:", pi_period_mean)
+
     ds_z500_train=ds_z500_pre.isel(time=slice(0,(4769 * 10)))
     ds_z500_test=ds_z500_pre.isel(time=slice(int(90*4769),476900))
     
@@ -65,7 +68,7 @@ def load_test_data(settings_file_path, standardize_predictors=0):
     #z500_train = z500[0:int(4769 * 10),:]
     #z500_test = z500[int(90*4769):476900,:]
     
-    return z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced
+    return z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced, pi_period_mean
 
 def load_eth_test_data(settings_file_path, standardize_predictors=0):
     
@@ -102,16 +105,21 @@ def load_eth_test_data(settings_file_path, standardize_predictors=0):
     
     ### Load Z500 data ###
     ds_z500_pre = xr.open_dataset(settings['dataset_z500_eth_test'])
-
+    
+    mean_gmt = np.nan
+    std_gmt = np.nan
     print("ATTENTION: Z500 PC time-series is standardized manually here")
     if standardize_predictors:
-        ds_z500_standardized, mean, std = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values)
+        ds_z500_standardized, mean_gmt, std_gmt = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values)
+        ds_z500_standardized_dummy, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values, mean = 0.90820444, std = 1.3471472)
+        ds_z500_standardized[:,-1] = ds_z500_standardized_dummy[:,-1]
+        print("fGMT + 3°C:", ds_z500_standardized[:,-1])
     else:
         ds_z500_standardized = ds_z500_pre.pseudo_pcs.values
     print("z500 dataset shape", ds_z500_standardized.shape)
     z500 = torch.from_numpy(ds_z500_standardized)
 
-    return z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf 
+    return z500, mask_x_te_eth_fact, ds_test_eth_fact, ds_test_eth_cf, x_te_reduced_eth_fact, x_te_reduced_eth_cf, mean_gmt, std_gmt 
 
     
 
@@ -236,14 +244,25 @@ def create_ensemble(ensemble_type,
     # load data
     if ensemble_type == "LE":
         #z500_test, z500_train, mask, ds_train, ds_test, x_te_reduced = load_test_data()
-        z500_test, z500_train, mask, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced = load_test_data(settings_file_path, standardize_predictors)
+        z500_test, z500_train, mask, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced, _ = load_test_data(settings_file_path, standardize_predictors)
 
     elif ensemble_type == "ETH":
-        z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf = load_eth_test_data(settings_file_path, standardize_predictors)
+        z500_test, mask, ds_test, ds_test_eth_cf, x_te_reduced, x_te_reduced_cf, mean_gmt, std_gmt = load_eth_test_data(settings_file_path, standardize_predictors)
+        _, _, _, _, _, _, _, _, pi_period_mean = load_test_data(settings_file_path, standardize_predictors)
+
+        print("std_gmt:", std_gmt)
         #z500_test, mask, ds_test, x_te_reduced, x_te_reduced_cf = load_eth_test_data() # x_te_reduced is x_te_reduced_eth_fact
     #print("ds_train:", ds_train)
+    
+    print("mean gmt shape:", mean_gmt.shape)
+    print("mean gmt:", mean_gmt[0,-1])
+    print("std gmt shape:", std_gmt.shape)
+    print("std gmt:", std_gmt[0,-1])
+    print("PI ref mean:", pi_period_mean)
+    cf_fgmt = (pi_period_mean - mean_gmt[0,-1]) / std_gmt[0,-1]
+    print("CF fGMT:", cf_fgmt)
+    #print("Finished")
     #sys.exit()
-        # z500_standardized, mask_x_te_eth_fact, ds_test_eth_fact, x_te_reduced_eth_fact, x_te_reduced_eth_cf
     print("Data loaded")
     # create model
     model_enc, model_dec, model_pred = create_dpa_model(device,
@@ -304,7 +323,7 @@ def create_ensemble(ensemble_type,
             # replace GMTs with 0 for counterfactual predictions
             z500_test_cf = z500_test
             #z500_test_cf[:,-1] = 0 for fGMT not standardized
-            z500_test_cf[:,-1] = -0.7389813694652794 # for fGMT standardized
+            z500_test_cf[:,-1] = float(cf_fgmt) #-0.7389813694652794 # for fGMT standardized
             for i in range(1, ensemble_size+1):
                 gen_te_cf = model_dec(model_pred(z500_test_cf.to(device).float()))
                 torch.save(gen_te_cf, f"{save_path}/cf_gen{i}_te.pt")

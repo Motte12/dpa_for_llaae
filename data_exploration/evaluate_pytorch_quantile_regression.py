@@ -21,6 +21,7 @@ def main():
     parser.add_argument("--data_version", type=str, help="Test data version.")
     parser.add_argument("--eval_counterfactuals", type=int, default=0, help="Whether to evaluate counterfactuals.")
     parser.add_argument("--one_dimensional_ger", type=int, default=0, help="Whether to evaluate for DPA trained on 1d ger data.")
+    parser.add_argument("--analogues", type=int, default=0, help="Whether to evaluate analogues.")
 
     args = parser.parse_args()
     print(args.data_version)
@@ -32,7 +33,7 @@ def main():
     
 
     
-    # coordinates 
+    # Germany coordinates 
     ger_lat_min = 48
     ger_lat_max = 54
     ger_lon_min = 6
@@ -43,6 +44,24 @@ def main():
         trefht_dpa_trans_ger_mean = xr.open_dataset("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/ger_1d_dpa/1d_50_6_50_5_1001_20_2_50_encoderislearnable_lambda0.5_bs128_bnisTrue/raw_ETH_gen_dpa_ens_4_dataset.nc").TREFHT.isel(lat_x_lon=0)
         print(trefht_dpa_trans_ger_mean.values.T.shape)
 
+        
+    if bool(args.analogues):
+        # analogues
+        #dpa_ds = xr.open_dataset("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/analogues/analogue_ensemble_10pcs_5analogues_100analoguemembers_complete.nc").ensemble_temp.transpose("analogue_ensemble_member","time","lat","lon")
+        #trefht_dpa_trans_ger = dpa_ds.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
+        dpa_ds = xr.open_dataset(args.compare_model).ensemble_temp.transpose("analogue_ensemble_member","time","lat","lon")
+        trefht_dpa_trans_ger = dpa_ds.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
+        print(trefht_dpa_trans_ger)
+        
+        
+        
+        # calculate weighted means
+        #weights
+        weights_ger_pre = np.cos(np.deg2rad(trefht_dpa_trans_ger["lat"]))
+        weights_ger = weights_ger_pre / weights_ger_pre.sum()
+        
+        # training data
+        trefht_dpa_trans_ger_mean = trefht_dpa_trans_ger.weighted(weights_ger).mean(dim=("lat", "lon"))
         
     else:
         # DPA
@@ -65,7 +84,7 @@ def main():
         trefht_dpa_trans_ger_mean = trefht_dpa_trans_ger.weighted(weights_ger).mean(dim=("lat", "lon"))
         #trefht_dpa_trans_ger_mean
 
-    print(trefht_dpa_trans_ger_mean.values.T.shape)
+    print("trefht_dpa_trans_ger_mean.values.T.shape:", trefht_dpa_trans_ger_mean.values.T.shape)
     dpa_trans_predicted_quantiles = np.quantile(trefht_dpa_trans_ger_mean.values.T, np.linspace(0.05, 0.95, 19), axis=1).T
     print(dpa_trans_predicted_quantiles.shape)
 
@@ -209,7 +228,15 @@ def main():
 
     # ---- Prepare test data ----
     # load my data
-    settings_file_path = f"../joint_training/{args.data_version}_dpa_train_settings.json" #used v2 here for a long time
+    if args.data_version not in ["v1", "v2", "v3", "v4"]:
+        settings_file_path = f"../joint_training/{args.data_version}"
+    
+    else:
+        settings_file_path = f"../joint_training/{args.data_version}_dpa_train_settings.json" #used v2 here for a long time
+
+    print("settings file path:", settings_file_path)
+    
+    sys.exit()
     
     with open(settings_file_path, 'r') as file:
             settings = json.load(file)

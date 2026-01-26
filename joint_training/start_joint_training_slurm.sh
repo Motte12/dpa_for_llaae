@@ -22,8 +22,8 @@ epochs=100
 # 3.1) Echo for debugging
 echo "TASK ${SLURM_ARRAY_TASK_ID} → latent_dim=$ld, encoder=$enc, hidden_dim_NN=$hdn, num_layers_NN=$nln, noise_dim_dec=$ndd, hidden_dim_lm=$hdl, noise_dim_lm=$ndl, lambda=$lambd"
 
-~/.conda/envs/dpa/bin/python train_joint_dpa_automated.py \
-    --settings_file v4_dpa_train_settings.json \
+srun ~/.conda/envs/dpa/bin/python train_joint_dpa_automated.py \
+    --settings_file v5_dpa_train_settings.json \
     --encoder "$enc" \
     --in_dim 648 \
     --latent_dim "$ld" \
@@ -35,5 +35,5 @@ echo "TASK ${SLURM_ARRAY_TASK_ID} → latent_dim=$ld, encoder=$enc, hidden_dim_N
     --hidden_dim_lm "$hdl" \
     --lam "$lambd" \
     --batch_size "$bs" \
-    --batch_norm 0 \
+    --batch_norm 1 \
     --epochs "$epochs"

@@ -4,10 +4,33 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import sys
 import matplotlib.patches as mpatches
+import matplotlib.dates as mdates
+
 sys.path.append('/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder')
 import utils as ut
+import pandas as pd
 
 
+
+def compute_coverage_per_quantile(y_true, q_preds, quantiles):
+    """
+    y_true: (N,)
+    q_preds: (N, Q)
+    quantiles: (Q,)
+    Returns: empirical coverages array of shape (Q,)
+    """
+    y_true = np.asarray(y_true).reshape(-1)
+    q_preds = np.asarray(q_preds)
+    quantiles = np.asarray(quantiles)
+
+    coverages = []
+    for j in range(len(quantiles)):
+        tau = quantiles[j]
+        q_tau = q_preds[:, j]
+        cov = np.mean(y_true <= q_tau)
+        coverages.append(cov)
+
+    return np.array(coverages)
 
 def pearsonr_cols(x, y, dim=0, eps=1e-12):
     """
@@ -119,10 +142,14 @@ def plot_dpa_time_series(true_t, dpa_ens, dpa_ens_mean, lat_min, lat_max, lon_mi
     
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize_ts)
 
+    #for year in plot_year:
     year = plot_year
     temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label=f"{climate} Truth")
     dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label=f"{climate} DPA ensemble\nmean")
-    
+     
+    #ax.plot(np.arange(19), temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values, label="Truth")
+    #ax.plot(np.arange(19), dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values, label="DPA ensemble mean")
+
     # ADD COUNTERFACTUAL TEMPERATURE HERE
     #cf_temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label="CF Truth")
     #dpa_ens_mean_ger_cf.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label="DPA CF mean")
@@ -140,8 +167,169 @@ def plot_dpa_time_series(true_t, dpa_ens, dpa_ens_mean, lat_min, lat_max, lon_mi
     
     
     ax.legend()
-    #plt.tight_layout()
     ax.set_title(title, fontsize=title_fontsize)
+
+    ###
+    if len(plot_year) > 1:
+        multi_year = True
+    else:
+        multi_year = False
+
+    return fig, ax
+
+def plot_multiple_dpa_time_series(true_t, dpa_ens, dpa_ens_mean, true_t_fact, dpa_ens_fact, dpa_ens_mean_fact, lat_min, lat_max, lon_min, lon_max, plot_year, figsize_ts, title_fontsize, title, climate):
+    
+    ### True (Test) temperature ###
+    # true temperature - germany spatial average
+    temp_true_ger_pre = true_t.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
+    #cf_temp_true_ger_pre = ds_test_1300_eth_cf.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
+
+    
+    # create weights
+    # 1) define weights as above
+    weights_ger = np.cos(np.deg2rad(temp_true_ger_pre['lat']))
+    
+    # 2) wrap in a DataArray so xarray knows which dim it belongs to
+    w_da_ger = xr.DataArray(weights_ger, coords={'lat': temp_true_ger_pre['lat']}, dims=['lat'])
+    
+    temp_true_ger = temp_true_ger_pre.weighted(w_da_ger).mean(dim=('lat', 'lon'))
+    #cf_temp_true_ger = cf_temp_true_ger_pre.weighted(w_da_ger).mean(dim=('lat', 'lon'))
+    #print("cf_temp_true_ger:", cf_temp_true_ger)
+
+
+    ### DPA Ensemble COUNTERFACTUAL ###
+    # standard deviation, germany mean
+    dpa_ens_std = dpa_ens.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).std(dim="ensemble_member") # before: dpa_ensemble_restored.TREFHT
+    dpa_ens_std_ger = dpa_ens_std.weighted(w_da_ger).mean(dim=('lat', 'lon'))
+
+    # ensemble mean, germany mean 
+    dpa_ens_mean_ger = dpa_ens_mean.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon')) # before: dpa_ensemble_restored
+    print(dpa_ens_mean_ger.shape)
+    #dpa_ens_mean_ger_cf = dpa_ens_mean_cf_1300_restored.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
+
+    # ensemble germany average (ensemble_member, )
+    dpa_ens_ger_1300 = dpa_ens.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
+    print("dpa_ens_ger_1300:", dpa_ens_ger_1300.values.T.shape)
+
+    # counterfactual truth
+    fact_truth_ger = true_t.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
+    
+
+    ### DPA Ensemble FACTUAL ###
+    # standard deviation, germany mean
+    dpa_ens_std_fact = dpa_ens_fact.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).std(dim="ensemble_member") # before: dpa_ensemble_restored.TREFHT
+    dpa_ens_std_ger_fact = dpa_ens_std_fact.weighted(w_da_ger).mean(dim=('lat', 'lon'))
+
+    # ensemble mean, germany mean 
+    dpa_ens_mean_ger_fact = dpa_ens_mean_fact.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon')) # before: dpa_ensemble_restored
+    #print(dpa_ens_mean_ger_fact.shape)
+    #dpa_ens_mean_ger_cf = dpa_ens_mean_cf_1300_restored.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
+
+    # ensemble germany average (ensemble_member, )
+    dpa_ens_ger_1300_fact = dpa_ens_fact.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
+    #print("dpa_ens_ger_1300:", dpa_ens_ger_1300.values.T.shape)
+
+    # factual truth
+    fact_truth_ger = true_t_fact.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
+    
+    
+    
+    # plot
+    n_stds = 2
+    # cf
+    lower_env = dpa_ens_mean_ger + n_stds * dpa_ens_std_ger 
+    upper_env = dpa_ens_mean_ger - n_stds * dpa_ens_std_ger
+
+    # factual
+    lower_env_fact = (dpa_ens_mean_ger_fact + n_stds * dpa_ens_std_ger_fact).TREFHT #.to_numpy().astype("float64")
+    upper_env_fact = (dpa_ens_mean_ger_fact - n_stds * dpa_ens_std_ger_fact).TREFHT #.to_numpy().astype("float64")
+
+    print("dpa_ens_mean_ger:", dpa_ens_mean_ger)
+    print("lower env:", lower_env)
+    print("upper env:", upper_env)
+    
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize_ts)
+
+    for year in plot_year:
+        #year = plot_year
+        lw=1.0
+        times = temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).time.values
+        print("time coordinates:", times)
+        #months_days = [(t.month, t.day) for t in times]
+        labels = [f'{t.month:02d}-{t.day:02d}' for t in times]
+        print("labels:", labels)
+
+        
+
+        #print(months_days)
+
+        plt.plot(range(19), temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values, color="tab:cyan", linewidth=lw)
+        plt.plot(range(19), dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values, color="tab:blue", linestyle="--", linewidth=lw)
+        plt.plot(range(19), fact_truth_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values, color = "tab:orange", linewidth=lw)
+        plt.plot(range(19), dpa_ens_mean_ger_fact.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values, color="tab:red", linestyle="--", linewidth=lw)
+        #temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, color="tab:cyan", linewidth=lw) #label="CF Truth",
+        #dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, color="tab:blue", linestyle="--", linewidth=lw) #label="CF DPA\nensemble mean",
+        #fact_truth_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, color = "tab:orange", linewidth=lw) #label="Factual Truth",
+        #dpa_ens_mean_ger_fact.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, color="tab:red", linestyle="--", linewidth=lw) #label="Fact DPA\nensemble mean",
+        
+        #ax.plot(time_coords, temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values, label="Counterfactual Truth", color="tab:cyan", linewidth=0.3)
+        #ax.plot(time_coords, dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values, label="CF DPA ensemble mean", color="tab:blue", linestyle="--", linewidth=0.3)
+        #ax.plot(time_coords, fact_truth_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values, label="Factual Truth", color = "tab:orange", linewidth=0.3)
+        #ax.plot(time_coords, dpa_ens_mean_ger_fact.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values, label="Fact DPA ensemble mean", color="tab:red", linestyle="--", linewidth=0.3)
+        
+        
+        # fill_between needs numpy arrays + axis
+        
+
+        # factual
+        ax.fill_between(
+            range(19), #dpa_ens_mean_ger_fact.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).time.values,   # x-axis values (datetime64)
+            #np.arange(19),
+            lower_env_fact.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values,        # lower bound
+            upper_env_fact.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values,        # upper bound
+            color="tab:red", alpha=0.2, label=r'$\pm$' + f"2 factual DAE ensemble standard deviations",
+            linewidth=0
+        )
+
+        # counterfactual
+        ax.fill_between(
+            range(19), #dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).time.values,   # x-axis values (datetime64)
+            #np.arange(19),
+            lower_env.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values,        # lower bound
+            upper_env.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values,        # upper bound
+            color="tab:blue", alpha=0.2, label=r'$\pm$' + f"2 CF DAE ensemble standard deviations",
+            linewidth=0
+        )
+
+        #ax.set_xticks(range(len(times)))
+        
+        # Major ticks: every 3rd time step (with labels)
+        ax.set_xticks(range(0, len(times), 3))
+        
+        # Minor ticks: all time steps
+        ax.set_xticks(range(len(times)), minor=True)
+
+        ax.set_xticklabels(
+                    [lab for i, lab in enumerate(labels[::3])],
+                    #[lab if i % 3 == 0 else '' for i, lab in enumerate(labels)],
+                    #rotation=45,
+                    #ha='right'
+                )
+
+        print("Plot times:", dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).time.values)
+
+    
+    ax.legend(fontsize=6, ncol=1, frameon=False)
+    #ax.xaxis.set_major_locator(mdates.DayLocator(interval=10))
+    #ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
+
+    #ax.set_title(title, fontsize=title_fontsize)
+
+    ###
+    if len(plot_year) > 1:
+        multi_year = True
+    else:
+        multi_year = False
 
     return fig, ax
 

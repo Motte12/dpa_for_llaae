@@ -1,0 +1,27 @@
+=== Current Time: 2026-01-21 16:37:25 ===
+=== Quantiles ===
+=== Current Time: 2026-01-21 16:40:21 ===
+=== Quantiles ===
+=== Current Time: 2026-01-21 16:40:46 ===
+=== Quantiles ===
+all quantiles mean MAE across test members (ETH 1300,1400,1500): 0.6173232197761536
+099 quantile mean MAE across test members (ETH 1300,1400,1500): 0.9757893681526184
+counterfactual, all quantiles mean MAE across test members (ETH 1300,1400,1500): 0.5881930589675903
+counterfactual, 099 quantile mean MAE across test members (ETH 1300,1400,1500): 0.7374240159988403
+coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.12850609507850197
+095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.052233013088276235
+counterfactual coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.1348423141186299
+counterfactual 095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.17926335901482096
+Spatial mean factual autocorrelation difference: -0.16499991714954376
+Spatial mean counterfactual autocorrelation difference: -0.12103559076786041
+Factual Energy-Score spatial mean across test members: 0.8274364471435547
+Factual S1-Score spatial mean across test members: 1.4049345254898071
+Factual S2-Score spatial mean across test members: 1.1549965143203735
+Counterfactual Energy-Score spatial mean across test members: 1.247728943824768
+Counterfactual S1-Score spatial mean across test members: 1.8290640115737915
+Counterfactual S2-Score spatial mean across test members: 1.1626700162887573
+spatial mean correlation mean across test members (ETH 1300,1400,1500): 0.7859063744544983
+counterfactualspatial mean correlation mean across test members (ETH 1300,1400,1500): 0.5030454993247986
+Factual R^2 spatial mean, mean across test members (ETH 1300,1400,1500): 0.4567316174507141
+Factual RI spatial mean, mean across test members (ETH 1300,1400,1500): 0.28674134612083435
+Counterfactual RI spatial mean, mean across test members (ETH 1300,1400,1500): 0.3625837564468384

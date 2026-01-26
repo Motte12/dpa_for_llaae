@@ -796,10 +796,24 @@ def torch_to_dataarray_ae_only(x_tensor, coords_ds, lat_dim=32, lon_dim=32, name
 
     return da
 
-def standardize_numpy(X):
-    mean = X.mean(axis=0, keepdims=True)
-    std = X.std(axis=0, keepdims=True)
+def v0_standardize_numpy(X, mean=None, std=None):
+
+    if mean is None and std is None:
+        mean = X.mean(axis=0, keepdims=True)
+        std = X.std(axis=0, keepdims=True)
     return (X - mean) / (std), mean, std
+
+def standardize_numpy(X, mean=None, std=None):
+    if (mean is None) != (std is None):
+        raise ValueError("mean and std must be both provided or both None")
+
+    if mean is None:
+        mean = X.mean(axis=0, keepdims=True)
+        std = X.std(axis=0, keepdims=True)
+        std = np.where(std == 0, 1.0, std)
+
+    return (X - mean) / std, mean, std
+
 
 def data_to_torch(ds, variable):
     temp_data = ds[variable]
@@ -839,3 +853,26 @@ def predictors_to_torch(ds, variable):
     data_tensor = torch.tensor(data_np, dtype=torch.float32)
     print(data_tensor.shape)
     return data_tensor
+
+def get_ger_1d_data(trefht_pre,
+                    lat_min = 48,
+                    lat_max = 54,
+                    lon_min = 6,
+                    lon_max = 15
+                    ):
+    
+    # cut data
+    trefht_le = trefht_pre.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
+    
+    # calculate weighted means
+    #weights
+    weights_pre = np.cos(np.deg2rad(trefht_le["lat"]))
+    weights = weights_pre / weights_pre.sum()
+    
+    # training data
+    trefht_le_spat_mean = trefht_le.weighted(weights).mean(dim=("lat", "lon"))
+    trefht_le_spat_mean
+    
+    return trefht_le_spat_mean
+
+

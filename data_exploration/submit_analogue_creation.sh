@@ -11,6 +11,6 @@ echo "Running from: $(pwd)"
 
 
 # Run the script 
-~/.conda/envs/dpa/bin/python create_analogues_parallel.py
+~/.conda/envs/dpa/bin/python create_analogues_parallel_v4_data.py
 
 echo "Job finished at $(date)"

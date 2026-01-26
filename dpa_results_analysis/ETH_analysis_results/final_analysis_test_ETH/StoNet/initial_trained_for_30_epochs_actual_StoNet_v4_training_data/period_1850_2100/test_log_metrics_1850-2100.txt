@@ -1,0 +1,27 @@
+=== Current Time: 2025-12-17 07:24:32 ===
+=== Quantiles ===
+coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.028970359910971105
+095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.01884286548844688
+counterfactual coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.08552654854857554
+counterfactual 095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.07737476561158436
+all quantiles mean MAE across test members (ETH 1300,1400,1500): 0.6192046403884888
+099 quantile mean MAE across test members (ETH 1300,1400,1500): 1.6534525156021118
+counterfactual, all quantiles mean MAE across test members (ETH 1300,1400,1500): 0.3096192181110382
+counterfactual, 099 quantile mean MAE across test members (ETH 1300,1400,1500): 0.42038580775260925
+coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.08205235269948101
+095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.14758965006338085
+counterfactual coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.08552654854857554
+counterfactual 095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.07737476561158436
+Spatial mean factual autocorrelation difference: -0.387986421585083
+Spatial mean counterfactual autocorrelation difference: -0.12600083649158478
+Factual Energy-Score spatial mean across test members: 0.5854120850563049
+Factual S1-Score spatial mean across test members: 1.1514228582382202
+Factual S2-Score spatial mean across test members: 1.132021427154541
+Counterfactual Energy-Score spatial mean across test members: nan
+Counterfactual S1-Score spatial mean across test members: nan
+Counterfactual S2-Score spatial mean across test members: 1.0961719751358032
+spatial mean correlation mean across test members (ETH 1300,1400,1500): 0.6161565184593201
+counterfactualspatial mean correlation mean across test members (ETH 1300,1400,1500): nan
+Factual R^2 spatial mean, mean across test members (ETH 1300,1400,1500): 0.35829460620880127
+Factual RI spatial mean, mean across test members (ETH 1300,1400,1500): 0.24202799797058105
+Counterfactual RI spatial mean, mean across test members (ETH 1300,1400,1500): 0.1479334682226181
