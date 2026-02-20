@@ -373,15 +373,6 @@ def main():
 
     print(z500_le)
     
-    # load LE GMT
-    #gmt_le_pre = xr.open_dataset(settings["GMT_LE"])
-    #gmt_le = (gmt_le_pre - gmt_le_pre.mean()) / gmt_le_pre.std()
-    #print(gmt_le)
-    
-    # concatenate data 
-    #gmt_le_expanded = gmt_le.TREFHT.expand_dims(mode=[-1]).T  # add 'mode' dimension with length 1
-    predictors_combined_le
-    #gmt_le_expanded
     
     # Load ETH ensemble data
     # Test data
@@ -440,13 +431,14 @@ def main():
 
     if args.standardize_predictors:
         ###
+        print("Predictors are being standardized")
         ## train
-        train_predictors, _, _ = ut.standardize_numpy(predictors_combined_le[:90*4769, :])
+        train_predictors, train_mean, train_std = ut.standardize_numpy(predictors_combined_le[:90*4769, :])
         X_torch = torch.from_numpy(train_predictors)
         y_torch = torch.from_numpy(trefht_le_ger_mean.values)[:90*4769]
     
         ## validation
-        validation_predictors, _, _ = ut.standardize_numpy(predictors_combined_le[90*4769:, :])
+        validation_predictors, _, _ = ut.standardize_numpy(predictors_combined_le[90*4769:, :], train_mean, train_std)
         X_val_torch = torch.from_numpy(validation_predictors)
         y_val_torch = torch.from_numpy(trefht_le_ger_mean.values)[90*4769:]
     
@@ -466,6 +458,7 @@ def main():
 
     print("X_val:", X_val_torch.shape)
     print("y_val:", y_val_torch.shape)
+
     
     # Example fake data ##############################################
     #n_samples = 476900
@@ -517,6 +510,25 @@ def main():
     
     print("Weights shape:", W.shape)  # (3, 1001) if 3 quantiles
     print("Bias shape:", b.shape)
+
+    ###
+    # save this script
+    current_script = os.path.realpath(__file__)
+
+    # timestamp string: YYYYMMDD_HHMMSS
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # output filename with timestamp
+    out_file = os.path.join(
+        args.save_path,
+        f"used_baseline_training_script_{timestamp}.py"
+    )
+
+    # copy the script
+    shutil.copy(current_script, out_file)
+
+    print(f"Script saved as: {out_file}")
+    ###
 
 if __name__ == "__main__":
     main()

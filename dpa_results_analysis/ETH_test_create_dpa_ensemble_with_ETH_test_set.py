@@ -91,11 +91,12 @@ def main():
     parser.add_argument("--no_resblock", dest="resblock", action="store_false",
                         help="Disable residual blocks.")
 
-    parser.add_argument("--bn", action="store_true", default=True,
-                        help="Use batch normalization (default: True).")
-
-    parser.add_argument("--no_bn", dest="bn", action="store_false",
-                        help="Disable batch normalization.")
+    parser.add_argument("--bn", type=int, default=0,
+                        help="Use batch normalization (default: 0).")
+    #parser.add_argument("--bn", action="store_true", default=True,
+    #                    help="Use batch normalization (default: True).")
+    #parser.add_argument("--no_bn", dest="bn", action="store_false",
+    #                    help="Disable batch normalization.")
 
     # --- Regularization and training ---
     parser.add_argument("--lambd", type=float, default=0.5,
@@ -136,7 +137,7 @@ def main():
     
     in_dim_lm=args.in_dim_lm #1001
     num_layers_lm=args.num_layers_lm #2
-    hidden_dim_lm=args.hidden_dim #50
+    hidden_dim_lm=args.hidden_dim_lm #50
     noise_dim_lm=args.noise_dim_lm #20
 
     out_act = args.out_act #None
@@ -163,7 +164,7 @@ def main():
                                     noise_dim_dec=noise_dim_dec,
                                     in_dim_lm=in_dim_lm,
                                     num_layers_lm=num_layers_lm,
-                                    hidden_dim_lm=hidden_dim,
+                                    hidden_dim_lm=hidden_dim_lm,
                                     noise_dim_lm=noise_dim_lm,
                                     encoder_path=f"{args.model_path}/{args.encoder_model}",
                                     decoder_path=f"{args.model_path}/{args.decoder_model}",

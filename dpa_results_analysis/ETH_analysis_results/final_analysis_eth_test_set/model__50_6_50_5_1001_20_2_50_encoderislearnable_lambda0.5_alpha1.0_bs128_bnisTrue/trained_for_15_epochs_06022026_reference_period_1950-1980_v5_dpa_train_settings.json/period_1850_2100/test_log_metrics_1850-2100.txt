@@ -1,0 +1,23 @@
+=== Current Time: 2026-02-09 10:29:27 ===
+=== Quantiles ===
+all quantiles mean MAE across test members (ETH 1300,1400,1500): 0.500698983669281
+099 quantile mean MAE across test members (ETH 1300,1400,1500): 0.2802802622318268
+counterfactual, all quantiles mean MAE across test members (ETH 1300,1400,1500): 0.8241981267929077
+counterfactual, 099 quantile mean MAE across test members (ETH 1300,1400,1500): 0.6601718664169312
+coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.10989780433456946
+095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.02245480930943759
+counterfactual coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.1974933610291686
+counterfactual 095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.03064596713859315
+Spatial mean factual autocorrelation difference: -0.12648910284042358
+Spatial mean counterfactual autocorrelation difference: -0.14675173163414001
+Factual Energy-Score spatial mean across test members: 0.7360214591026306
+Factual S1-Score spatial mean across test members: 1.341291069984436
+Factual S2-Score spatial mean across test members: 1.2105393409729004
+Counterfactual Energy-Score spatial mean across test members: nan
+Counterfactual S1-Score spatial mean across test members: nan
+Counterfactual S2-Score spatial mean across test members: 1.174569010734558
+spatial mean correlation mean across test members (ETH 1300,1400,1500): 0.9129552245140076
+counterfactualspatial mean correlation mean across test set (ETH 1300,1400,1500): nan
+Factual R^2 spatial mean, mean across test members (ETH 1300,1400,1500): 0.794599175453186
+Factual RI spatial mean, mean across test members (ETH 1300,1400,1500): 0.1812189668416977
+Counterfactual RI spatial mean, mean across test members (ETH 1300,1400,1500): 0.30271151661872864

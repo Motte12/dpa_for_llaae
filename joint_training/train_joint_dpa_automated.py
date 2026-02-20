@@ -57,7 +57,7 @@ def main():
     ## Loss
     parser.add_argument('--lam', type=float, default=1.0, help="Weight between energy loss in Y and latent space")
     parser.add_argument('--alpha', type=float, default=1.0, help="Weight between AE reconstruction energy loss and energy loss of d(lm(X)) in Y ")
-    #parser.add_argument('--include_KL', type=bool, default="False", help='Whether to include KL loss')
+    parser.add_argument('--include_pen_e', type=int, default=1, help='Whether to include KL-like (penalty_e) loss')
 
     # Parse arguments
     args = parser.parse_args()
@@ -90,13 +90,26 @@ def main():
     lr = args.lr
     training_epochs=args.epochs
 
+    #############
+    ### Seeds ###
+    #############
+    random.seed(42)
+    torch.manual_seed(42)
+    torch.cuda.manual_seed(42)
+
+    ##################
+    ### Cuda Setup ###
+    ##################
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("device:", device)
+
     
-    
+    # settings
     with open(settings_file_path, 'r') as file:
         settings = json.load(file)
     
     # create save directory
-    save_dir = f"{settings['output_dir']}_{latent_dim}_{num_layers}_{hidden_dim}_{noise_dim_dec}_{in_dim_lm}_{noise_dim_lm}_{num_layers_lm}_{hidden_dim_lm}_encoderis{encoder}_lambda{lam}_alpha{args.alpha}_bs{batch_size}_bnis{bn}/"
+    save_dir = f"{settings['output_dir']}_device{device}{latent_dim}_{num_layers}_{hidden_dim}_{noise_dim_dec}_{in_dim_lm}_{noise_dim_lm}_{num_layers_lm}_{hidden_dim_lm}_encoderis{encoder}_lambda{lam}_alpha{args.alpha}_bs{batch_size}_bnis{bn}_lr{lr}/"
     
     # create directory
     os.makedirs(save_dir, exist_ok=True)
@@ -112,18 +125,7 @@ def main():
     shutil.copy(current_script, f"{save_dir}used_training_script.py")
 
     
-    #############
-    ### Seeds ###
-    #############
-    random.seed(42)
-    torch.manual_seed(42)
-    torch.cuda.manual_seed(42)
-
-    ##################
-    ### Cuda Setup ###
-    ##################
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("device:", device)
+    
 
     
 
@@ -162,30 +164,15 @@ def main():
     #predictors_combined_eth = z500_eth.pseudo_pcs.values 
 
     ## train
-    train_predictors, _, _ = ut.standardize_numpy(predictors_combined_le[:90*4769, :])
+    train_predictors, mean_train, std_train = ut.standardize_numpy(predictors_combined_le[:90*4769, :])
     X_torch = torch.from_numpy(train_predictors)
+    
 
     ## validation
-    validation_predictors, _, _ = ut.standardize_numpy(predictors_combined_le[90*4769:, :])
+    validation_predictors, _, _ = ut.standardize_numpy(predictors_combined_le[90*4769:, :], mean_train, std_train)
     X_val_torch = torch.from_numpy(validation_predictors)
+    print("validation set shape:", predictors_combined_le[90*4769:, :].shape, mean_train.shape, std_train.shape)
 
-
-
-    ###
-    #ds_z500_pre = xr.open_dataset(settings['dataset_z500'])
-
-    # Z500 not standardized yet
-    #ds_z500, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values) 
-
-    # Z500 already standardized
-    #ds_z500 = ds_z500_pre.pseudo_pcs.values #ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values)
-    #print("z500 shape", ds_z500.shape)
-    #z500 = torch.from_numpy(ds_z500)
-    #print("z500 shape", z500.shape)
-    
-    
-    #z500_train = z500[:int(4769 * 90),:]
-    #z500_test = z500[int(4769 * 90):,:]
 
     # remove NaNs from Temperature data
     x_tr_reduced, mask_x_tr = ut.remove_nan_columns(x_tr)
@@ -288,7 +275,7 @@ def main():
                 f"DPA s2, "
                 f"LM NRGY, "
                 f"LM s1, "
-                f"LM s1 ")
+                f"LM s2 ")
     
     # write log file 
     log_file.write(log + '\n')
@@ -392,13 +379,16 @@ def main():
             #penalty_gen = torch.linalg.vector_norm(z1.std(dim=0) - 1) + torch.linalg.vector_norm(z1.mean(dim=0)) # penalizes deviations from std=1 and mean = 0 for predicted latent sample
 
             if encoder == "learnable":
-                penalty_e = torch.linalg.vector_norm(e.std(dim=0) - 1) + torch.linalg.vector_norm(e.mean(dim=0)) # penalizes deviations from std=1 and mean = 0 for encoded sample
-                loss = loss_pre + penalty_e #+ penalty_gen
+                if args.include_pen_e:
+                    print("penalty e included")
+                    penalty_e = torch.linalg.vector_norm(e.std(dim=0) - 1) + torch.linalg.vector_norm(e.mean(dim=0)) # penalizes deviations from std=1 and mean = 0 for encoded sample
+                    loss = loss_pre + penalty_e #+ penalty_gen
 
-            else:
-                loss = loss_pre #+ penalty_gen
+                else:
+                    loss = loss_pre #+ penalty_gen
                 
-            
+            else:
+                loss = loss_pre
             #else:
             loss_pred, s1_pred, s2_pred = energy_loss_two_sample(y, gen1, gen2, verbose=True, beta=beta)
             
@@ -593,7 +583,7 @@ def main():
         ### Save Model ###
         ##################
         # comment out for tuning
-        if (epoch_idx + 1) % 10 == 0:
+        if (epoch_idx + 1) % 5 == 0:
             if args.encoder == "learnable":
                 torch.save(model_enc.state_dict(), save_dir + "model_enc_" + str(epoch_idx + 1) + ".pt")
             torch.save(model_dec.state_dict(), save_dir + "model_dec_" + str(epoch_idx + 1) + ".pt")

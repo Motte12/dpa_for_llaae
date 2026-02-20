@@ -29,21 +29,21 @@ data_version="v5_dpa_train_settings_ERA5.json"
 # --bn or --no_bn
 
 # save paths
-results_save_comment="_reference_period_1950-1980_${data_version}_training_data_proper_standardization"
+results_save_comment="ERA5_reference_period_1950-1980_${data_version}"
 ensemble_save_path="${MODEL_PATH}${MODEL}/${results_save_comment}/dpa_ensemble_after_${NO_EPOCHS}_epochs/"
 
-# ETH (actually ERA5) ensemble
-#python3 ETH_test_create_dpa_ensemble_with_ETH_test_set.py \
-#    --ens_members $ENS_MEMBERS \
-#    --save_path_ensemble_single $ensemble_save_path \
-#    --model_path "$MODEL_PATH${MODEL}" \
-#    --encoder_model $ENCODER \
-#    --decoder_model $DECODER \
-#    --latent_map_model $LATENT_MAP \
-#    --no_epochs $NO_EPOCHS \
-#    --standardize_predictors 1 \
-#    --autoencode_only 0 \
-#    --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}" &
+# ERA5 ensemble
+python3 ETH_test_create_dpa_ensemble_with_ETH_test_set.py \
+    --ens_members $ENS_MEMBERS \
+    --save_path_ensemble_single $ensemble_save_path \
+    --model_path "$MODEL_PATH${MODEL}" \
+    --encoder_model $ENCODER \
+    --decoder_model $DECODER \
+    --latent_map_model $LATENT_MAP \
+    --no_epochs $NO_EPOCHS \
+    --standardize_predictors 1 \
+    --autoencode_only 0 \
+    --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}" &
 
 # LE train data set ensemble
 #srun -N1 -n1 python3 LE_train_create_dpa_ensemble_with_LE_train_set.py \
@@ -61,7 +61,7 @@ ensemble_save_path="${MODEL_PATH}${MODEL}/${results_save_comment}/dpa_ensemble_a
 #wait
 #echo "Exit ..."
 #exit
-#wait
+wait
 echo "Ensemble created, now analyzing"
 
 
@@ -85,9 +85,11 @@ for i in "${!period_start_years[@]}"; do
         --ens_members $ENS_MEMBERS \
         --calculate_e_loss_per_ti 0 \
         --StoNet_ensemble 0 \
-        --save_path_eth "ETH_analysis_results/final_analysis_test_ETH/model_${MODEL}/trained_for_${NO_EPOCHS}_epochs_${results_save_comment}" \
+        --save_path_eth "ETH_analysis_results/final_analysis_test_ERA5/model_${MODEL}/trained_for_${NO_EPOCHS}_epochs_${results_save_comment}" \
         --save_path_le "ETH_analysis_results/final_analysis_train_LE/model_${MODEL}/model_trained_for_${NO_EPOCHS}_epochs_${results_save_comment}" \
-        --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}" &
+        --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}" \
+        --no_test_members 1 \
+        --include_train_analysis 0 &
 
 done
 

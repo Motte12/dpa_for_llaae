@@ -22,87 +22,37 @@ def main():
     parser.add_argument("--eval_counterfactuals", type=int, default=0, help="Whether to evaluate counterfactuals.")
     parser.add_argument("--one_dimensional_ger", type=int, default=0, help="Whether to evaluate for DPA trained on 1d ger data.")
     parser.add_argument("--analogues", type=int, default=0, help="Whether to evaluate analogues.")
+    parser.add_argument("--standardize_predictors", type=int, default=0, help="Whether to standardize validation/test predictors.")
+    parser.add_argument("--eval_validation_set", type=int, default=0, help="Whether to validate validation set or test set.")
+    parser.add_argument("--qr_epoch", type=int, default=100, help="Quantile regression checkpoint/epoch to load.")
+    parser.add_argument("--eval_era5", type=int, default=0, help="Whether to evaluate Era5.")
+    parser.add_argument("--domain", type=str, default="GER", help="Which domain to evaluate")
 
     args = parser.parse_args()
     print(args.data_version)
     print(type(args.data_version))
 
-    #############################
-    ### Load comparison model ###
-    #############################
+    save_string = f"{args.domain}"
+
+    # Domain 
+    if True: #domain == "GER":
+        # GER
+        lat_min = 48
+        lat_max = 54
+        lon_min = 6
+        lon_max = 15
     
 
-    
-    # Germany coordinates 
-    ger_lat_min = 48
-    ger_lat_max = 54
-    ger_lon_min = 6
-    ger_lon_max = 15
-    
-    # cut train data
-    if args.one_dimensional_ger:
-        trefht_dpa_trans_ger_mean = xr.open_dataset("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/ger_1d_dpa/1d_50_6_50_5_1001_20_2_50_encoderislearnable_lambda0.5_bs128_bnisTrue/raw_ETH_gen_dpa_ens_4_dataset.nc").TREFHT.isel(lat_x_lon=0)
-        print(trefht_dpa_trans_ger_mean.values.T.shape)
-
-        
-    if bool(args.analogues):
-        # analogues
-        #dpa_ds = xr.open_dataset("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/analogues/analogue_ensemble_10pcs_5analogues_100analoguemembers_complete.nc").ensemble_temp.transpose("analogue_ensemble_member","time","lat","lon")
-        #trefht_dpa_trans_ger = dpa_ds.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
-        dpa_ds = xr.open_dataset(args.compare_model).ensemble_temp.transpose("analogue_ensemble_member","time","lat","lon")
-        trefht_dpa_trans_ger = dpa_ds.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
-        print(trefht_dpa_trans_ger)
-        
-        
-        
-        # calculate weighted means
-        #weights
-        weights_ger_pre = np.cos(np.deg2rad(trefht_dpa_trans_ger["lat"]))
-        weights_ger = weights_ger_pre / weights_ger_pre.sum()
-        
-        # training data
-        trefht_dpa_trans_ger_mean = trefht_dpa_trans_ger.weighted(weights_ger).mean(dim=("lat", "lon"))
-        
-    else:
-        # DPA
-        dpa_ds = xr.open_dataset(args.compare_model)#xr.open_dataset("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/dpa_ensemble_after_100epochs/eth_ensemble_after_100_epochs/ETH_gen_dpa_ens_100_dataset_restored.nc") # v2 model
-        trefht_dpa_trans_ger = dpa_ds.TREFHT.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
-        print("##############")
-        print("###Datasets###")
-        print("##############")
-        print(trefht_dpa_trans_ger)
-        # analogues
-        #dpa_ds = xr.open_dataset("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/analogues/analogue_ensemble_10pcs_5analogues_100analoguemembers_complete.nc").ensemble_temp.transpose("analogue_ensemble_member","time","lat","lon")
-        #trefht_dpa_trans_ger = dpa_ds.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
-        
-        # calculate weighted means
-        #weights
-        weights_ger_pre = np.cos(np.deg2rad(trefht_dpa_trans_ger["lat"]))
-        weights_ger = weights_ger_pre / weights_ger_pre.sum()
-        
-        # training data
-        trefht_dpa_trans_ger_mean = trefht_dpa_trans_ger.weighted(weights_ger).mean(dim=("lat", "lon"))
-        #trefht_dpa_trans_ger_mean
-
-    print("trefht_dpa_trans_ger_mean.values.T.shape:", trefht_dpa_trans_ger_mean.values.T.shape)
-    dpa_trans_predicted_quantiles = np.quantile(trefht_dpa_trans_ger_mean.values.T, np.linspace(0.05, 0.95, 19), axis=1).T
-    print(dpa_trans_predicted_quantiles.shape)
-
-
-    
-    ###########################
-    ### Load model and logs ###
-    ###########################
-    
-    # Model 2
-    model_path = args.model_path
+    ###########################################################
+    ### Plot Training loss curves and smoothed pinball loss ###
+    ###########################################################
     
     # Look at loss curves
-    csv_path = f"{model_path}training_log.csv"
+    csv_path = f"{args.model_path}training_log.csv"
     
     # --- 1. Load parameters from metadata.json ---
     
-    metadata_path = f"{model_path}metadata.json"  # adjust if needed
+    metadata_path = f"{args.model_path}metadata.json"  # adjust if needed
     print(metadata_path)
     
     with open(metadata_path, "r") as f:
@@ -197,21 +147,31 @@ def main():
         ax.legend()
     
     plt.tight_layout()
-    plt.savefig(f"{args.results_save_path}smoothed_pinball_loss.png")
-    #plt.show()
+    #plt.savefig(f"{args.results_save_path}smoothed_pinball_loss.png")
+
+    ###############################################################
+    ### End plot Training loss curves and smoothed pinball loss ###
+    ###############################################################
 
     
+    
+    ##################################
+    ### Quantile rergression model ###
+    ##################################
 
+    # Load model
+    model_path = args.model_path
+    
     # ---- Load metadata ----
     with open(f"{model_path}metadata.json", "r") as f:
         meta = json.load(f)
     
-    quantiles = meta["quantiles"]
+    #quantiles = meta["quantiles"]
     n_features = meta["n_features"]
     n_quantiles = len(quantiles)
     
     # ---- Load checkpoint ----
-    ckpt_path = meta["last_checkpoint"]
+    ckpt_path = f"{args.model_path}checkpoint_epoch_{args.qr_epoch}.pth"#meta["last_checkpoint"]
     checkpoint = torch.load(ckpt_path, map_location="cpu", weights_only=False)
     
     # ---- Rebuild model ----
@@ -226,46 +186,37 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = model.to(device)
 
-    # ---- Prepare test data ----
-    # load my data
+    
+    
+    #################
+    ### Test data ###
+    #################
+    
     if args.data_version not in ["v1", "v2", "v3", "v4"]:
         settings_file_path = f"../joint_training/{args.data_version}"
     
     else:
         settings_file_path = f"../joint_training/{args.data_version}_dpa_train_settings.json" #used v2 here for a long time
 
-    print("settings file path:", settings_file_path)
-    
-    sys.exit()
-    
+    # open settings file
     with open(settings_file_path, 'r') as file:
             settings = json.load(file)
     
-    # Load Z500 data
-    z500_test = xr.open_dataset(settings['dataset_z500_eth_test']).pseudo_pcs
-    if args.data_version == "v1" or args.data_version == "v4":
-        print("v1 data, still standardized here")
-        z500_test_np, _, _ = ut.standardize_numpy(z500_test.values)
-    else:
-        print("predictors already standardized")
-        z500_test_np = z500_test.values
-    X_test_torch = torch.from_numpy(z500_test_np.astype("float32")).to(device)
-    print(X_test_torch.shape)
-    
-    if args.eval_counterfactuals:
-        X_test_torch[:,-1] = -0.7389813694652794
-    # ---- Predict from Qu. regression model ----
-    with torch.no_grad():
-        preds = model(X_test_torch)   # shape (N_test, n_quantiles)
-    print(preds.shape)
-    quantile_predictions = preds.cpu().numpy()
-    print("quantile predictions:", quantile_predictions)
-
-    # Temperature Test data
+    #############################
+    ### Temperature Test data ###
+    #############################
     if args.eval_counterfactuals:
         trefht_eth = xr.open_dataset(settings['dataset_trefht_eth_nudged_shifted'])
     else:
-        trefht_eth = xr.open_dataset(settings['dataset_trefht_eth_transient'])
+        if bool(args.eval_validation_set):
+            trefht_eth = xr.open_dataset(settings['dataset_trefht']).isel(time=slice(90*4769,476900))
+            print("#########################")
+            print("### Validation Dataset###")
+            print("#########################")
+            print(trefht_eth)
+
+        else:
+            trefht_eth = xr.open_dataset(settings['dataset_trefht_eth_transient'])
     print(trefht_eth)
 
     print("##############")
@@ -273,73 +224,211 @@ def main():
     print("##############")
     print(xr.open_dataset(settings['dataset_trefht_eth_nudged_shifted']))
     print(xr.open_dataset(settings['dataset_trefht_eth_transient']))
+
+    if bool(args.eval_era5):
+        trefht_eth = trefht_eth.sel(time=slice("1940","2023"))
     
-    # germany domain 
-    ### Germany ###
-        
-    # coordinates 
-    ger_lat_min = 48
-    ger_lat_max = 54
-    ger_lon_min = 6
-    ger_lon_max = 15
+
+    
     
     # cut test data
-    trefht_eth_ger = trefht_eth.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
-    print(trefht_eth_ger)
+    trefht_eth_ger = trefht_eth.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
     
     # calculate weighted means
     #weights
     weights_ger_pre = np.cos(np.deg2rad(trefht_eth["lat"]))
     weights_ger = weights_ger_pre / weights_ger_pre.sum()
-    plt.show()
     # test_data
     trefht_eth_ger_mean = trefht_eth_ger.TREFHT.weighted(weights_ger).mean(dim=("lat", "lon")).values
-    print("Nans in trefht nudged/number:", np.isnan(trefht_eth_ger_mean).any(), np.isnan(trefht_eth_ger_mean).sum())
-    plt.plot(trefht_eth_ger_mean)
-    plt.savefig("eval_results/test_plot.png")
-    print()
-    #trefht_eth_ger_mean
+    
+    #################################
+    ### Load Test Predictors Z500 ###
+    #################################
+    z500_test = xr.open_dataset(settings['dataset_z500_eth_test']).pseudo_pcs
 
+    ##################################
+    ### Load Train Predictors Z500 ###
+    ##################################
+    predictors_combined_le = xr.open_dataset(settings['dataset_z500']).pseudo_pcs.values
+    print("predictors combined shape:", predictors_combined_le.shape)
+
+    ### STANDARDIZE DATA ###
+    if args.data_version == "v1" or args.data_version == "v4" or args.standardize_predictors:
+        print("Data standardized here")
+        ## train
+        train_predictors, train_mean, train_std = ut.standardize_numpy(predictors_combined_le[:90*4769, :])
+        X_torch = torch.from_numpy(train_predictors)
+        print(train_mean.shape, train_std.shape)
+    
+        ## validation
+        validation_predictors, _, _ = ut.standardize_numpy(predictors_combined_le[90*4769:, :], train_mean, train_std)
+        X_val_torch = torch.from_numpy(validation_predictors)
+        
+        ## test data
+        z500_test_np_pre, _, _ = ut.standardize_numpy(z500_test.values, train_mean, train_std)
+
+        # standardize only fGMT with train statistics
+        #z500_test_np_pre_dummy, _, _ = ut.standardize_numpy(z500_test.values, train_mean[0,-1], train_std[0,-1])
+        #z500_test_np_pre[:,-1] = z500_test_np_pre_dummy[:,-1]
+        
+        print("###########################################")
+        print("### This will not work as is for ERA5!! ###")
+        print("###########################################")
+
+        print("#########################")
+        print("### Adjust for ERA5!! ###")
+        print("#########################")
+    else:
+        print("predictors already standardized")
+        z500_test_np = z500_test.values
+        
+
+    # SET VALIDATION OR TEST DATA
+    if args.eval_validation_set:
+        print("#################################")
+        print("### Validating VALIDATION set ###")
+        print("#################################")
+        X_test_torch = torch.from_numpy(validation_predictors.astype("float32")).to(device)
+        z500_test_np = X_test_torch
+
+    else:
+        print("###########################")
+        print("### Validating TEST set ###")
+        print("###########################")
+        X_test_torch = torch.from_numpy(z500_test_np_pre.astype("float32")).to(device)   
+        z500_test_np = X_test_torch 
+    
+
+    #X_test_torch = torch.from_numpy(z500_test_np.astype("float32")).to(device)
+
+    # set counterfactual fGMT when evaluating counterfactuals
+    if args.eval_counterfactuals:
+        print("predictors length:", z500_test_np_pre.shape[0])
+
+        # standardize fGMT = 0°C with train fGMT mean and std 
+        cf_fgmt_raw = np.zeros((z500_test_np_pre.shape[0],1))
+        cf_fgmt, _, _ = ut.standardize_numpy(cf_fgmt_raw, train_mean[:,-1], train_std[:,-1])
+        print("cf_fgmt shape:", cf_fgmt.shape)
+        print("cf_fgmt:", cf_fgmt[0,0])
+
+        # assign value to test set
+        X_test_torch[:,-1] = torch.from_numpy(cf_fgmt[:,0]) #-0.7389813694652794
+    
+    #########################
+    ### Model predictions ###
+    #########################
+
+    # Quantile regression model 
+    with torch.no_grad():
+        preds = model(X_test_torch)   # shape (N_test, n_quantiles)
+    quantile_predictions = preds.cpu().numpy() # trnasform into numpy
+
+
+    ###################################
+    ### Load comparison model (DAE) ###
+    ###################################
+    
+    # cut train data
+    if args.one_dimensional_ger:
+        # old
+        trefht_dpa_trans_ger_mean = xr.open_dataset("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/ger_1d_dpa/1d_50_6_50_5_1001_20_2_50_encoderislearnable_lambda0.5_bs128_bnisTrue/raw_ETH_gen_dpa_ens_4_dataset.nc").TREFHT.isel(lat_x_lon=0)
+        print(trefht_dpa_trans_ger_mean.values.T.shape)
+
+        
+    if bool(args.analogues):
+        # analogues
+        #dpa_ds = xr.open_dataset("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/analogues/analogue_ensemble_10pcs_5analogues_100analoguemembers_complete.nc").ensemble_temp.transpose("analogue_ensemble_member","time","lat","lon")
+        #trefht_dpa_trans_ger = dpa_ds.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
+        dpa_ds = xr.open_dataset(args.compare_model).ensemble_temp.transpose("analogue_ensemble_member","time","lat","lon")
+        trefht_dpa_trans_ger = dpa_ds.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
+        print(trefht_dpa_trans_ger)
+        
+        
+
+        # calculate weighted means
+        #weights
+        weights_ger_pre = np.cos(np.deg2rad(trefht_dpa_trans_ger["lat"]))
+        weights_ger = weights_ger_pre / weights_ger_pre.sum()
+        trefht_dpa_trans_ger_mean = trefht_dpa_trans_ger.weighted(weights_ger).mean(dim=("lat", "lon"))
+        
+    else:
+        ###########
+        ### DAE ###
+        ###########
+        dpa_ds = xr.open_dataset(args.compare_model) #dpa_ds = xr.open_dataset("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/analogues/analogue_ensemble_10pcs_5analogues_100analoguemembers_complete.nc").ensemble_temp.transpose("analogue_ensemble_member","time","lat","lon")
+        #trefht_dpa_trans_ger = dpa_ds.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
+        trefht_dpa_trans_ger = dpa_ds.TREFHT.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
+        print("##############")
+        print("###Datasets###")
+        print("##############")
+        print(trefht_dpa_trans_ger)
+        
+        # calculate weighted means
+        #weights
+        weights_ger_pre = np.cos(np.deg2rad(trefht_dpa_trans_ger["lat"]))
+        weights_ger = weights_ger_pre / weights_ger_pre.sum()
+        
+        # training data
+        trefht_dpa_trans_ger_mean = trefht_dpa_trans_ger.weighted(weights_ger).mean(dim=("lat", "lon"))
+        #trefht_dpa_trans_ger_mean
+
+    print("trefht_dpa_trans_ger_mean.values.T.shape:", trefht_dpa_trans_ger_mean.values.T.shape)
+    
+    ##################
+    ##################
+    ##################
+
+    # miscellaneous assignments
     # prepare data for validation 
     X_test_np = z500_test_np
     y_test_np = trefht_eth_ger_mean
-    quantiles = meta["quantiles"]
-    # quantile regression predicted quantiles
-    quantile_predictions = quantile_predictions
+    #quantiles = meta["quantiles"]
     
     
-    # DPA predicted quantiles (ADD later)
+    # DPA predicted quantiles
+    # compute marginal quantiles of comparison model (DAE)
+    dpa_trans_predicted_quantiles = np.quantile(trefht_dpa_trans_ger_mean.values.T, np.linspace(0.05, 0.95, 19), axis=1).T
+    print("####################################")
+    print("DPA trans predicted quantiles shape:",dpa_trans_predicted_quantiles.shape)
+    print("DPA trans predicted quantiles:",dpa_trans_predicted_quantiles)
+    print("####################################")
     if args.compare_model is not None:    
         quantile_predictions_dpa = dpa_trans_predicted_quantiles
 
-    y = y_test_np
+    
+    y = trefht_eth_ger_mean #y_test_np
     q_hat = quantile_predictions  # (N_test, n_quantiles)
     if args.compare_model is not None:
         q_hat_dpa = quantile_predictions_dpa
+
+
+    ################
+    ### Plotting ###
+    ################
     
-    coverages = []
-    coverages_dpa = []
-    for j, tau in enumerate(quantiles):
-        # quantile regression
-        coverage = np.mean(y <= q_hat[:, j])
-        coverages.append(coverage)
-        print(f"Qu.regression: tau={tau:.2f}, empirical coverage={coverage:.4f}")
+    #coverages = []
+    #coverages_dpa = []
+    #for j, tau in enumerate(quantiles):
+    #    # quantile regression
+    #    coverage = np.mean(y <= q_hat[:, j])
+    #    coverages.append(coverage)
+    #    print(f"Qu.regression: tau={tau:.2f}, empirical coverage={coverage:.4f}")
     
-        # comparison model (DPA, analogues)
-        if args.compare_model is not None:
-            coverage_dpa = np.mean(y <= q_hat_dpa[:, j])
-            coverages_dpa.append(coverage_dpa)
-            print(f"Qu.regression: tau={tau:.2f}, empirical coverage DPA={coverage_dpa:.4f}")
+    #    # comparison model (DPA, analogues)
+    #    if args.compare_model is not None:
+    #        coverage_dpa = np.mean(y <= q_hat_dpa[:, j])
+    #        coverages_dpa.append(coverage_dpa)
+    #        print(f"Qu.regression: tau={tau:.2f}, empirical coverage DPA={coverage_dpa:.4f}")
     
-    plt.figure()
-    plt.plot(quantiles, coverages, marker="o", label="empirical coverage qu. regression")
-    if args.compare_model is not None:
-        plt.plot(quantiles, coverages_dpa, marker="o", label="empirical coverage comparison model (eg DPA or analogues)")
-    plt.plot([0, 1], [0, 1], linestyle="--", label="ideal")
-    plt.xlabel("Nominal quantile (tau)")
-    plt.ylabel("Empirical coverage P(y <= q̂_tau)")
-    plt.title("Quantile calibration")
-    plt.legend()
+    #plt.figure()
+    #plt.plot(quantiles, coverages, marker="o", label="empirical coverage qu. regression")
+    #if args.compare_model is not None:
+        #plt.plot(quantiles, coverages_dpa, marker="o", label="empirical coverage comparison model (eg DPA or analogues)")
+    #plt.plot([0, 1], [0, 1], linestyle="--", label="ideal")
+    #plt.xlabel("Nominal quantile (tau)")
+    #plt.ylabel("Empirical coverage P(y <= q̂_tau)")
+    #plt.title("Quantile calibration")
+    #plt.legend()
     #plt.savefig(f"{args.results_save_path}empirical_coverage_curves.png")
     #plt.show()
 
@@ -348,19 +437,19 @@ def main():
     #####################
     
     # quantile regression
-    print("y_test_no shape:", y_test_np.shape)
+    #print("y_test_no shape:", y_test_np.shape)
     
     
-    u = compute_pit_from_quantiles(y_test_np, quantile_predictions, quantiles)
-    ax = plot_pit_histogram(u, bins=20, title = "PIT Histogram quantile regression")
-    plt.ylim(0,5)
+    #u = compute_pit_from_quantiles(y_test_np, quantile_predictions, quantiles)
+    #ax = plot_pit_histogram(u, bins=20, title = "PIT Histogram quantile regression")
+    #plt.ylim(0,5)
     
 
-    if args.compare_model is not None:
-        # DPA
-        u = compute_pit_from_quantiles(y_test_np, quantile_predictions_dpa, quantiles)
-        ax = plot_pit_histogram(u, bins=20, title = "PIT Histogram comparison model")
-        plt.ylim(0,5)
+    #if args.compare_model is not None:
+    #    # DPA
+    #    u = compute_pit_from_quantiles(y_test_np, quantile_predictions_dpa, quantiles)
+    #    ax = plot_pit_histogram(u, bins=20, title = "PIT Histogram comparison model")
+    #    plt.ylim(0,5)
         
 
 
@@ -368,16 +457,15 @@ def main():
     ### Pinball/Quantile loss ###
     #############################
     loss = pinball_loss_multi_np(y_test_np, quantile_predictions, quantiles=quantiles)
-    print("Overall mean pinball loss:", loss)
+    #print("Overall mean pinball loss:", loss)
 
     per_q = pinball_loss_per_quantile_np(y_test_np, quantile_predictions, quantiles=quantiles)
-    #plt.scatter(quantiles, per_q, marker = 'x', s=10, color = "tab:blue", label = "Quantile regression")
 
     ### DPA
     if args.compare_model is not None:
-        print("quantile preds DPA shape:", quantile_predictions_dpa.shape)
+    #    print("quantile preds DPA shape:", quantile_predictions_dpa.shape)
         loss_dpa = pinball_loss_multi_np(y_test_np, quantile_predictions_dpa, quantiles=quantiles)
-        print("loss dpa shape:", loss_dpa.shape)
+    #    print("loss dpa shape:", loss_dpa.shape)
         per_q_dpa = pinball_loss_per_quantile_np(y_test_np, quantile_predictions_dpa, quantiles=quantiles)
 
 
@@ -389,11 +477,8 @@ def main():
     qr_crps_mean, qr_crps_per_sample = crps_from_quantiles(
         y_test_np, quantile_predictions, quantiles
     )
-    print("QR model mean CRPS:", qr_crps_mean)
 
-    ###########
-    ### DPA ###
-    ###########
+    ### DPA
     qr_crps_mean_dpa, qr_crps_per_sample_dpa = crps_from_quantiles(
         y_test_np, quantile_predictions_dpa, quantiles
     )
@@ -408,134 +493,130 @@ def main():
     print("QR sharpness summary:", qr_spread_summary)
 
     ### Comparison model (DPA)
-    ###########
-    ### DPA ###
-    ###########
     qr_spreads_dpa, qr_spread_summary_dpa = sharpness_qr(
         quantile_predictions_dpa, quantiles, lower=0.1, upper=0.9
     )
+    # ########################
+    # ### put all together ###
+    # ########################
 
-    ########################
-    ### put all together ###
-    ########################
+    # ###################################
+    # ### Summary quantile regression ###
+    # ###################################
+    
+    # fig, axes = plt.subplots(3, 2, figsize=(18, 15))
 
-    ###################################
-    ### Summary quantile regression ###
-    ###################################
+    # # upper Left: calibration curve
+    # plot_calibration_curve(y_test_np, quantile_predictions, quantiles, ax=axes[0,0])
     
-    fig, axes = plt.subplots(3, 2, figsize=(18, 15))
-
-    # upper Left: calibration curve
-    plot_calibration_curve(y_test_np, quantile_predictions, quantiles, ax=axes[0,0])
+    # # upper Right: PIT histogram
+    # u = compute_pit_from_quantiles(y_test_np, quantile_predictions, quantiles)
+    # plot_pit_histogram(u, bins=20, ax=axes[0,1])
     
-    # upper Right: PIT histogram
-    u = compute_pit_from_quantiles(y_test_np, quantile_predictions, quantiles)
-    plot_pit_histogram(u, bins=20, ax=axes[0,1])
+    # # lower left
+    # _, _, spreads, mean_spread, median_spread, q10, q90 = plot_qr_spreads(qr_spreads, axes[1,0], bins=40)
     
-    # lower left
-    _, _, spreads, mean_spread, median_spread, q10, q90 = plot_qr_spreads(qr_spreads, axes[1,0], bins=40)
-    
-    # lower right
-    axes[1,1].scatter(quantiles, per_q, marker = 'x', s=20, color = "tab:purple", label = "DPA")
+    # # lower right
+    # axes[1,1].scatter(quantiles, per_q, marker = 'x', s=20, color = "tab:purple", label = "DPA")
     
     
-    #plt.tight_layout()
-    ###
-    # assuming you already computed these:
-    # spreads, mean_spread, median_spread, q10, q90
+    # #plt.tight_layout()
+    # ###
+    # # assuming you already computed these:
+    # # spreads, mean_spread, median_spread, q10, q90
     
-    summary = (
-        f"Quantile regression\n"
-        f"Overall mean pinball loss: {loss}\n"
-        "\n"
-        f"CRPS: {qr_crps_mean}\n"
-        "\n"
-        "QR spread summary:\n"
-        f"  N samples      : {spreads.size}\n"
-        f"  mean spread    : {mean_spread:.6f}\n"
-        f"  median spread  : {median_spread:.6f}\n"
-        f"  10% spread     : {q10:.6f}\n"
-        f"  90% spread     : {q90:.6f}"
-    )
+    # summary = (
+    #     f"Quantile regression\n"
+    #     f"Overall mean pinball loss: {loss}\n"
+    #     "\n"
+    #     f"CRPS: {qr_crps_mean}\n"
+    #     "\n"
+    #     "QR spread summary:\n"
+    #     f"  N samples      : {spreads.size}\n"
+    #     f"  mean spread    : {mean_spread:.6f}\n"
+    #     f"  median spread  : {median_spread:.6f}\n"
+    #     f"  10% spread     : {q10:.6f}\n"
+    #     f"  90% spread     : {q90:.6f}"
+    # )
     
     
     
-    # Clear anything already in that axis (optional)
-    axes[2,0].cla()
+    # # Clear anything already in that axis (optional)
+    # axes[2,0].cla()
     
-    axes[2,0].text(
-        0, 0.8,              # position in axis coordinates (left, top)
-        summary,
-        va='top', ha='left',
-        fontsize=14,
-        family='monospace',    # keeps columns aligned
-        transform=axes[2,0].transAxes
-    )
+    # axes[2,0].text(
+    #     0, 0.8,              # position in axis coordinates (left, top)
+    #     summary,
+    #     va='top', ha='left',
+    #     fontsize=14,
+    #     family='monospace',    # keeps columns aligned
+    #     transform=axes[2,0].transAxes
+    # )
     
-    axes[2,0].set_axis_off()  # optional: hides the plot frame
-    axes[2,1].set_axis_off()
-    #plt.savefig(f"{args.results_save_path}summary_qu_regression.png")
-    #plt.show()
+    # axes[2,0].set_axis_off()  # optional: hides the plot frame
+    # axes[2,1].set_axis_off()
+    # #plt.savefig(f"{args.results_save_path}summary_qu_regression.png")
+    # #plt.show()
 
     
-    ###################
-    ### Summary DPA ###
-    ###################
-    if args.compare_model is not None:
-        fig, axes = plt.subplots(3, 2, figsize=(18, 15))
+    # ###################
+    # ### Summary DPA ###
+    # ###################
+    # if args.compare_model is not None:
+    #     fig, axes = plt.subplots(3, 2, figsize=(18, 15))
     
-        # upper Left: calibration curve
-        plot_calibration_curve(y_test_np, quantile_predictions_dpa, quantiles, ax=axes[0,0])
+    #     # upper Left: calibration curve
+    #     plot_calibration_curve(y_test_np, quantile_predictions_dpa, quantiles, ax=axes[0,0])
         
-        # upper Right: PIT histogram
-        #u = compute_pit_from_quantiles(y_test_np, quantile_predictions_dpa, quantiles)
-        #plot_pit_histogram(u, bins=20, ax=axes[0,1])
+    #     # upper Right: PIT histogram
+    #     #u = compute_pit_from_quantiles(y_test_np, quantile_predictions_dpa, quantiles)
+    #     #plot_pit_histogram(u, bins=20, ax=axes[0,1])
         
-        # lower left
-        _, _, spreads_dpa, mean_spread_dpa, median_spread_dpa, q10_dpa, q90_dpa = plot_qr_spreads(qr_spreads_dpa, axes[1,0], bins=40)
+    #     # lower left
+    #     _, _, spreads_dpa, mean_spread_dpa, median_spread_dpa, q10_dpa, q90_dpa = plot_qr_spreads(qr_spreads_dpa, axes[1,0], bins=40)
         
-        # lower right
-        print("loss dpa:", loss_dpa.shape)
-        print("quantiles shape:", len(quantiles))
-        axes[1,1].scatter(quantiles, per_q_dpa, marker = 'x', s=20, color = "tab:purple", label = "DPA")
-        
-        
-        #plt.tight_layout()
-        ###
-        # assuming you already computed these:
-        # spreads, mean_spread, median_spread, q10, q90
-        
-        summary = (
-            f"Comparison Model (DPA)\n"
-            f"Overall mean pinball loss: {loss_dpa}\n"
-            "\n"
-            f"CRPS: {qr_crps_mean_dpa}\n"
-            "\n"
-            "QR spread summary:\n"
-            f"  N samples      : {spreads_dpa.size}\n"
-            f"  mean spread    : {mean_spread_dpa:.6f}\n"
-            f"  median spread  : {median_spread_dpa:.6f}\n"
-            f"  10% spread     : {q10_dpa:.6f}\n"
-            f"  90% spread     : {q90_dpa:.6f}"
-        )
+    #     # lower right
+    #     print("loss dpa:", loss_dpa.shape)
+    #     print("quantiles shape:", len(quantiles))
+    #     axes[1,1].scatter(quantiles, per_q_dpa, marker = 'x', s=20, color = "tab:purple", label = "DPA")
         
         
+    #     #plt.tight_layout()
+    #     ###
+    #     # assuming you already computed these:
+    #     # spreads, mean_spread, median_spread, q10, q90
         
-        # Clear anything already in that axis (optional)
-        axes[2,0].cla()
+    #     summary = (
+    #         f"Comparison Model (DPA)\n"
+    #         f"Overall mean pinball loss: {loss_dpa}\n"
+    #         "\n"
+    #         f"CRPS: {qr_crps_mean_dpa}\n"
+    #         "\n"
+    #         "QR spread summary:\n"
+    #         f"  N samples      : {spreads_dpa.size}\n"
+    #         f"  mean spread    : {mean_spread_dpa:.6f}\n"
+    #         f"  median spread  : {median_spread_dpa:.6f}\n"
+    #         f"  10% spread     : {q10_dpa:.6f}\n"
+    #         f"  90% spread     : {q90_dpa:.6f}"
+    #     )
         
-        axes[2,0].text(
-            0, 0.8,              # position in axis coordinates (left, top)
-            summary,
-            va='top', ha='left',
-            fontsize=14,
-            family='monospace',    # keeps columns aligned
-            transform=axes[2,0].transAxes
-        )
         
-        axes[2,0].set_axis_off()  # optional: hides the plot frame
-        axes[2,1].set_axis_off()
-        #plt.savefig(f"{args.results_save_path}summary_dpa.png")
+        
+    #     # Clear anything already in that axis (optional)
+    #     axes[2,0].cla()
+        
+    #     axes[2,0].text(
+    #         0, 0.8,              # position in axis coordinates (left, top)
+    #         summary,
+    #         va='top', ha='left',
+    #         fontsize=14,
+    #         family='monospace',    # keeps columns aligned
+    #         transform=axes[2,0].transAxes
+    #     )
+        
+    #     axes[2,0].set_axis_off()  # optional: hides the plot frame
+    #     axes[2,1].set_axis_off()
+    #     #plt.savefig(f"{args.results_save_path}summary_dpa.png")
 
     ####################
     ### Summary Both ###
@@ -563,8 +644,8 @@ def main():
         # 2) PIT HISTOGRAM (top-right): QR vs DPA
         ax_pit = axes[0, 1]
     
-        u_qr  = compute_pit_from_quantiles(y_test_np, quantile_predictions,     quantiles)
-        u_dpa = compute_pit_from_quantiles(y_test_np, quantile_predictions_dpa, quantiles)
+        u_qr  = compute_pit_from_quantiles_randomized(y_test_np, quantile_predictions,     quantiles)
+        u_dpa = compute_pit_from_quantiles_randomized(y_test_np, quantile_predictions_dpa, quantiles)
     
         ax_pit.hist(u_qr,  bins=20, range=(0, 1), density=True, alpha=0.5, edgecolor="black",
                     label="QR")
@@ -605,16 +686,53 @@ def main():
     
         # 4) PINBALL LOSS PER QUANTILE (middle-right): QR vs DPA
         ax_pinball = axes[1, 1]
+
+        ranks_qr, counts_qr = rank_histogram_from_quantiles(
+            y_test_np, quantile_predictions, quantiles
+        )
+        ranks_dpa, counts_dpa = rank_histogram_from_quantiles(
+            y_test_np, quantile_predictions_dpa, quantiles
+        )
+        
+        # Normalize to probabilities
+        counts_qr = counts_qr / counts_qr.sum()
+        counts_dpa = counts_dpa / counts_dpa.sum()
+        
+        Q_plus_1 = len(counts_qr)
+        x = np.arange(Q_plus_1)
+        
+        bar_width = 0.4
+        ax_pinball.bar(x - bar_width / 2, counts_qr, width=bar_width, label="QR")
+        ax_pinball.bar(x + bar_width / 2, counts_dpa, width=bar_width, label="DPA")
+        
+        ax_pinball.set_xlabel("Verification rank")
+        ax_pinball.set_ylabel("Relative frequency")
+        ax_pinball.set_ylim(0, None)
+        ax_pinball.legend()
+        ax_pinball.set_xticks(x)
+        ax_pinball.set_xticklabels(x)
+
+
+        
+        #def plot_rank_histogram(counts, title="Rank histogram"):
+        #    Q_plus_1 = len(counts)
+        #    x = np.arange(Q_plus_1)
+        #    plt.figure()
+        #    plt.bar(x, counts)
+        #    plt.xlabel("Verification rank (0..Q)")
+        #    plt.ylabel("Count")
+        #    plt.title(title)
+        #    plt.show()
     
         # per_q, per_q_dpa already computed:
-        # per_q      = pinball_loss_per_quantile_np(y_test_np, quantile_predictions,     quantiles)
-        # per_q_dpa  = pinball_loss_per_quantile_np(y_test_np, quantile_predictions_dpa, quantiles)
-        ax_pinball.plot(quantiles, per_q,     marker="o", label="QR")
-        ax_pinball.plot(quantiles, per_q_dpa, marker="s", label="DPA")
+        ## per_q      = pinball_loss_per_quantile_np(y_test_np, quantile_predictions,     quantiles)
+        ## per_q_dpa  = pinball_loss_per_quantile_np(y_test_np, quantile_predictions_dpa, quantiles)
+        #ax_pinball.plot(quantiles, per_q,     marker="o", label="QR")
+        #ax_pinball.plot(quantiles, per_q_dpa, marker="s", label="DPA")
     
-        ax_pinball.set_xlabel("Quantile τ")
-        ax_pinball.set_ylabel("Mean pinball loss")
-        ax_pinball.set_title("Per-quantile pinball loss (QR vs DPA)")
+        ax_pinball.set_xlabel("rank")
+        ax_pinball.set_ylabel("counts")
+        ax_pinball.set_title("Rank Histogram")
         ax_pinball.grid(True)
         ax_pinball.legend()
     
@@ -691,6 +809,105 @@ def smooth_pinball_loss(u, tau, delta):
         smooth_abs = np.sqrt(u**2 + delta**2)
         return 0.5 * (smooth_abs + (2*tau - 1.0) * u)
 
+
+
+def compute_pit_from_quantiles_randomized(y_true, q_preds, quantiles, rng=0):
+    """
+    Compute randomized PIT values from quantile predictions.
+
+    This implements randomized PIT for an interval-valued / piecewise CDF implied by
+    a finite set of predicted quantiles. Under correct calibration, u is ~ Uniform(0,1).
+
+    Randomization rule:
+      - If y <= q(tau_1):  u ~ Uniform(0, tau_1)
+      - If y >= q(tau_K):  u ~ Uniform(tau_K, 1)
+      - If q(tau_j) <= y <= q(tau_{j+1}): u ~ Uniform(tau_j, tau_{j+1})
+        (with special handling when q(tau_j) == q(tau_{j+1}))
+
+    Parameters
+    ----------
+    y_true : (N,)
+    q_preds : (N, Q)
+        Predicted quantiles for each sample.
+    quantiles : (Q,)
+        Quantile levels (taus).
+    rng : None, int, np.random.Generator
+        Random number generator for reproducibility.
+        - None: uses np.random.default_rng()
+        - int: treated as a seed
+        - Generator: used directly
+
+    Returns
+    -------
+    u : (N,)
+        Randomized PIT values in [0,1].
+    """
+    y_true = np.asarray(y_true).reshape(-1)
+    q_preds = np.asarray(q_preds)
+    taus = np.asarray(quantiles)
+
+    # RNG handling
+    if rng is None:
+        rng = np.random.default_rng()
+    elif isinstance(rng, (int, np.integer)):
+        rng = np.random.default_rng(int(rng))
+    elif not isinstance(rng, np.random.Generator):
+        raise TypeError("rng must be None, an int seed, or a numpy.random.Generator")
+
+    # 1) Sort taus and reorder preds accordingly
+    sort_idx = np.argsort(taus)
+    taus = taus[sort_idx]
+    q_preds = q_preds[:, sort_idx]
+
+    N, Q = q_preds.shape
+    u = np.empty(N, dtype=float)
+
+    for i in range(N):
+        y = y_true[i]
+        qs = q_preds[i, :].copy()
+
+        # 2) Enforce non-decreasing quantiles (avoid crossing)
+        qs = np.maximum.accumulate(qs)
+
+        # 3) Handle outside range with randomized PIT
+        if y <= qs[0]:
+            u[i] = rng.uniform(0.0, float(taus[0]))
+            continue
+        if y >= qs[-1]:
+            u[i] = rng.uniform(float(taus[-1]), 1.0)
+            continue
+
+        # 4) Find interval qs[idx-1] <= y <= qs[idx]
+        idx = np.searchsorted(qs, y, side="left")
+        if idx <= 0:
+            u[i] = rng.uniform(0.0, float(taus[0]))
+            continue
+        if idx >= Q:
+            u[i] = rng.uniform(float(taus[-1]), 1.0)
+            continue
+
+        q_low, q_high = qs[idx - 1], qs[idx]
+        tau_low, tau_high = float(taus[idx - 1]), float(taus[idx])
+
+        # 5) Randomized PIT in tau-interval
+        if q_high == q_low:
+            # If the quantiles collapse to a point, the implied CDF has a jump/flat issue.
+            # A common randomized choice is Uniform(tau_low, tau_high) anyway.
+            u[i] = rng.uniform(tau_low, tau_high)
+        else:
+            # Fully randomized PIT (interval-valued CDF)
+            u[i] = rng.uniform(tau_low, tau_high)
+
+            # If you prefer "partially randomized" PIT (keeps linear interpolation but
+            # avoids boundary spikes), you can use:
+            # frac = (y - q_low) / (q_high - q_low)
+            # u_det = tau_low + frac * (tau_high - tau_low)
+            # u[i] = rng.uniform(tau_low, u_det)  # or rng.uniform(u_det, tau_high)
+            # but the standard randomized PIT is Uniform(tau_low, tau_high).
+
+    return u
+
+    
 def compute_pit_from_quantiles(y_true, q_preds, quantiles):
     """
     Compute PIT values using piecewise linear interpolation in (τ, q̂τ(x)) space.
@@ -1191,6 +1408,80 @@ def plot_calibration_curve(y_true, q_preds, quantiles, ax=None):
     ax.legend()
 
     return ax
+
+import numpy as np
+
+def rank_histogram_from_quantiles(y_true, q_preds, quantiles=None, randomize_ties=True, rng=0):
+    """
+    Compute verification ranks (rank histogram) using predicted quantiles as a pseudo-ensemble.
+
+    y_true: (N,)
+    q_preds: (N, Q) predicted quantiles (not necessarily sorted or monotone)
+    quantiles: optional (Q,) used only to sort columns consistently
+    randomize_ties: if True, randomly assigns ranks when y equals one or more quantile values
+    rng: None, int seed, or np.random.Generator
+
+    Returns
+    -------
+    ranks : (N,) integer ranks in {0,1,...,Q}
+        0 means y < all quantiles, Q means y > all quantiles,
+        k means between q[k-1] and q[k] (after sorting).
+    counts : (Q+1,) histogram counts
+    """
+    y_true = np.asarray(y_true).reshape(-1)
+    q_preds = np.asarray(q_preds)
+
+    if rng is None:
+        rng = np.random.default_rng()
+    elif isinstance(rng, (int, np.integer)):
+        rng = np.random.default_rng(int(rng))
+    elif not isinstance(rng, np.random.Generator):
+        raise TypeError("rng must be None, an int seed, or a numpy.random.Generator")
+
+    N, Q = q_preds.shape
+
+    # Sort by quantile levels if provided (helps consistent ordering)
+    if quantiles is not None:
+        taus = np.asarray(quantiles)
+        sort_idx = np.argsort(taus)
+        q_preds = q_preds[:, sort_idx]
+
+    ranks = np.empty(N, dtype=int)
+
+    for i in range(N):
+        y = y_true[i]
+        qs = q_preds[i, :].copy()
+
+        # enforce monotone increasing pseudo-ensemble (avoid crossing)
+        qs = np.maximum.accumulate(qs)
+
+        if not randomize_ties:
+            # Deterministic rank: number of members strictly less than y (or <= depending on convention)
+            ranks[i] = int(np.sum(qs < y))  # yields 0..Q
+            continue
+
+        # Randomized tie-handling:
+        # Let L = # of qs < y, E = # of qs == y, then rank is Uniform over {L, ..., L+E}
+        L = int(np.sum(qs < y))
+        E = int(np.sum(qs == y))
+        if E == 0:
+            ranks[i] = L
+        else:
+            ranks[i] = int(rng.integers(L, L + E + 1))  # inclusive upper via +1
+
+    counts = np.bincount(ranks, minlength=Q+1)
+    return ranks, counts
+
+
+def plot_rank_histogram(counts, title="Rank histogram"):
+    Q_plus_1 = len(counts)
+    x = np.arange(Q_plus_1)
+    plt.figure()
+    plt.bar(x, counts)
+    plt.xlabel("Verification rank (0..Q)")
+    plt.ylabel("Count")
+    plt.title(title)
+    plt.show()
 
 
 

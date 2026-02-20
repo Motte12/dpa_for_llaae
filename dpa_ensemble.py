@@ -52,8 +52,8 @@ def load_test_data(settings_file_path, standardize_predictors=0):
     ds_z500_test=ds_z500_pre.isel(time=slice(int(90*4769),476900))
     
     if standardize_predictors:
-        z500_train_pre, _, _ = ut.standardize_numpy(ds_z500_train.pseudo_pcs.values) # data is already standardized
-        z500_test_pre, _, _ = ut.standardize_numpy(ds_z500_test.pseudo_pcs.values) 
+        z500_train_pre, mean_train, std_train = ut.standardize_numpy(ds_z500_train.pseudo_pcs.values)
+        z500_test_pre, _, _ = ut.standardize_numpy(ds_z500_test.pseudo_pcs.values, mean_train, std_train) 
         z500_train = torch.from_numpy(z500_train_pre)
         z500_test = torch.from_numpy(z500_test_pre)
 
@@ -71,11 +71,33 @@ def load_test_data(settings_file_path, standardize_predictors=0):
     return z500_test, z500_train, mask_x_te, ds, ds_train, ds_test, x_te_reduced, x_tr_reduced, pi_period_mean
 
 def load_eth_test_data(settings_file_path, standardize_predictors=0):
+
+    with open(settings_file_path, 'r') as file:
+        settings = json.load(file)
+    ##########################################################
+    ### load large ensemble statistics for standardization ###
+    ##########################################################
+    
+
+    ### Load Z500 data ###
+    ds_z500_pre_train = xr.open_dataset(settings['dataset_z500'])
+    #pi_period_mean = ds_z500_pre.pseudo_pcs.isel(mode=1000, time=slice(0,4769)).sel(time=slice("1850","1900")).mean().values
+    #print("PI ref mean:", pi_period_mean)
+
+    ds_z500_train=ds_z500_pre_train.isel(time=slice(0,(4769 * 90)))
+
+    
+    z500_train_pre, mean_train, std_train = ut.standardize_numpy(ds_z500_train.pseudo_pcs.values)
+    mean_gmt = mean_train[0,-1]
+    std_gmt = std_train[0,-1]
+
+    ##############################################################
+    ### end load large ensemble statistics for standardization ###
+    ##############################################################
     
     # TREFHT 
     ## factual
-    with open(settings_file_path, 'r') as file:
-        settings = json.load(file)
+    
     
     ### Load temperature data ###
     ds_test_eth_fact = xr.open_dataset(settings['dataset_trefht_eth_transient'])
@@ -106,14 +128,17 @@ def load_eth_test_data(settings_file_path, standardize_predictors=0):
     ### Load Z500 data ###
     ds_z500_pre = xr.open_dataset(settings['dataset_z500_eth_test'])
     
-    mean_gmt = np.nan
-    std_gmt = np.nan
     print("ATTENTION: Z500 PC time-series is standardized manually here")
     if standardize_predictors:
-        ds_z500_standardized, mean_gmt, std_gmt = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values)
-        ds_z500_standardized_dummy, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values, mean = 0.90820444, std = 1.3471472)
-        ds_z500_standardized[:,-1] = ds_z500_standardized_dummy[:,-1]
-        print("fGMT + 3°C:", ds_z500_standardized[:,-1])
+        # old: standardize test set itself
+        #ds_z500_standardized, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values)
+        #ds_z500_standardized_dummy, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values, mean = mean_train[:,-1], std = std_train[:,-1])
+        #ds_z500_standardized[:,-1] = ds_z500_standardized_dummy[:,-1]
+
+        # new and supposingly correct: standardize with train statistics
+        ds_z500_standardized, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values, mean_train, std_train)
+
+        
     else:
         ds_z500_standardized = ds_z500_pre.pseudo_pcs.values
     print("z500 dataset shape", ds_z500_standardized.shape)
@@ -254,17 +279,18 @@ def create_ensemble(ensemble_type,
         #z500_test, mask, ds_test, x_te_reduced, x_te_reduced_cf = load_eth_test_data() # x_te_reduced is x_te_reduced_eth_fact
     #print("ds_train:", ds_train)
     
-    print("mean gmt shape:", mean_gmt.shape)
-    print("mean gmt:", mean_gmt[0,-1])
-    print("std gmt shape:", std_gmt.shape)
-    print("std gmt:", std_gmt[0,-1])
-    print("PI ref mean:", pi_period_mean)
-    cf_fgmt = (pi_period_mean - mean_gmt[0,-1]) / std_gmt[0,-1]
-    print("CF fGMT:", cf_fgmt)
+        print("mean gmt shape:", mean_gmt.shape)
+        print("mean gmt:", mean_gmt)
+        print("std gmt shape:", std_gmt.shape)
+        print("std gmt:", std_gmt)
+        print("PI ref mean:", pi_period_mean)
+        cf_fgmt = (pi_period_mean - mean_gmt) / std_gmt
+        print("CF fGMT:", cf_fgmt)
     #print("Finished")
     #sys.exit()
     print("Data loaded")
     # create model
+    print("Hidden dim model pred:", hidden_dim_lm)
     model_enc, model_dec, model_pred = create_dpa_model(device,
                                                         encoder,
                                                         in_dim,

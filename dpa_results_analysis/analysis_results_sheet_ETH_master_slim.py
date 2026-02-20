@@ -157,9 +157,9 @@ def main():
     # x_te_reduced_eth_cf   -> land grid cells counterfactual temperature data
 
     print("x_te_reduced_eth_fact:", x_te_reduced_eth_fact.shape)
+    
     slice_end_index = int(x_te_reduced_eth_fact.shape[0]/args.no_test_members)
     print("Slice end index:", slice_end_index)
-    
     # datasets
     ds_test_1300_eth_fact = ds_test_eth_fact.TREFHT.isel(time=slice(0, slice_end_index)).sel(time=slice(time_period[0], time_period[1])) # HERE TP
     #print("ds_test_1300_eth_fact:", ds_test_1300_eth_fact)
@@ -192,9 +192,9 @@ def main():
     #print(ds_test_eth_fact.TREFHT.isel(time=slice(0, 4769)).time[end_idx])
 
     
-    ######################
-    ### Load Test Data ###
-    ######################
+    #################
+    ### Test Data ###
+    #################
     
     # PYTORCH arrays
     # Factual Test/True temperatures
@@ -283,25 +283,29 @@ def main():
 
     # FACTUAL
     dpa_1300_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(0, slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
-    dpa_1400_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(slice_end_index,2*slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
-    dpa_1500_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(-slice_end_index,14307)).sel(time=slice(time_period[0], time_period[1]))
+    if args.no_test_members > 1:
+        dpa_1400_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(slice_end_index,2*slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
+        dpa_1500_fact_raw = dpa_ensemble_fact_raw.TREFHT.isel(time=slice(-slice_end_index,14307)).sel(time=slice(time_period[0], time_period[1]))
     #print("dpa_1300_fact_raw:", dpa_1300_fact_raw)
     
 
     # shape: ensemble_member: 100, time: 14307, lat: 32, lon: 32
     dpa_1300_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(0, slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
-    dpa_1400_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(slice_end_index,2*slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
-    dpa_1500_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(-slice_end_index,14307)).sel(time=slice(time_period[0], time_period[1]))
+    if args.no_test_members > 1:
+        dpa_1400_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(slice_end_index,2*slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
+        dpa_1500_fact_restored = dpa_ensemble_fact_restored.TREFHT.isel(time=slice(-slice_end_index,14307)).sel(time=slice(time_period[0], time_period[1]))
     
 
     # COUNTERFACTUAL
     dpa_1300_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(0, slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
-    dpa_1400_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(slice_end_index,2*slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
-    dpa_1500_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(-slice_end_index,14307)).sel(time=slice(time_period[0], time_period[1]))
+    if args.no_test_members > 1:
+        dpa_1400_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(slice_end_index,2*slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
+        dpa_1500_cf_raw = dpa_ensemble_raw_cf.TREFHT.isel(time=slice(-slice_end_index,14307)).sel(time=slice(time_period[0], time_period[1]))
 
     dpa_1300_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(0, slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
-    dpa_1400_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(slice_end_index,2*slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
-    dpa_1500_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(-slice_end_index,14307)).sel(time=slice(time_period[0], time_period[1]))
+    if args.no_test_members > 1:
+        dpa_1400_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(slice_end_index,2*slice_end_index)).sel(time=slice(time_period[0], time_period[1]))
+        dpa_1500_cf_restored = dpa_ensemble_restored_cf.TREFHT.isel(time=slice(-slice_end_index,14307)).sel(time=slice(time_period[0], time_period[1]))
     
     
     #############
@@ -354,25 +358,26 @@ def main():
     test_099_quantile.append(mae_spatial_mean1300_099)
     print("Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1300)
     print("Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1300_099)
+
+    if args.no_test_members > 1:
+        # 1400
+        dpa_1400_fact_raw_pt = torch.from_numpy(dpa_1400_fact_raw.values)
+        qu_gc_diff1400, mae_spatial_mean1400 = c_quantiles(eth_fact_1400_test_reduced, dpa_1400_fact_raw_pt, quantiles)
+        qu_gc_diff1400_099, mae_spatial_mean1400_099 = c_quantiles(eth_fact_1400_test_reduced, dpa_1400_fact_raw_pt, torch.tensor(0.99))
+        test_all_quantiles.append(mae_spatial_mean1400)
+        test_099_quantile.append(mae_spatial_mean1400_099)
+        print("Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1400)
+        print("Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1400_099)
     
-    # 1400
-    dpa_1400_fact_raw_pt = torch.from_numpy(dpa_1400_fact_raw.values)
-    qu_gc_diff1400, mae_spatial_mean1400 = c_quantiles(eth_fact_1400_test_reduced, dpa_1400_fact_raw_pt, quantiles)
-    qu_gc_diff1400_099, mae_spatial_mean1400_099 = c_quantiles(eth_fact_1400_test_reduced, dpa_1400_fact_raw_pt, torch.tensor(0.99))
-    test_all_quantiles.append(mae_spatial_mean1400)
-    test_099_quantile.append(mae_spatial_mean1400_099)
-    print("Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1400)
-    print("Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1400_099)
-
-
-    # 1500
-    dpa_1500_fact_raw_pt = torch.from_numpy(dpa_1500_fact_raw.values)
-    qu_gc_diff1500, mae_spatial_mean1500 = c_quantiles(eth_fact_1500_test_reduced, dpa_1500_fact_raw_pt, quantiles)
-    qu_gc_diff1500_099, mae_spatial_mean1500_099 = c_quantiles(eth_fact_1500_test_reduced, dpa_1500_fact_raw_pt, torch.tensor(0.99))
-    test_all_quantiles.append(mae_spatial_mean1500)
-    test_099_quantile.append(mae_spatial_mean1500_099)
-    print("Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1500)
-    print("Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1500_099)
+    
+        # 1500
+        dpa_1500_fact_raw_pt = torch.from_numpy(dpa_1500_fact_raw.values)
+        qu_gc_diff1500, mae_spatial_mean1500 = c_quantiles(eth_fact_1500_test_reduced, dpa_1500_fact_raw_pt, quantiles)
+        qu_gc_diff1500_099, mae_spatial_mean1500_099 = c_quantiles(eth_fact_1500_test_reduced, dpa_1500_fact_raw_pt, torch.tensor(0.99))
+        test_all_quantiles.append(mae_spatial_mean1500)
+        test_099_quantile.append(mae_spatial_mean1500_099)
+        print("Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1500)
+        print("Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1500_099)
 
     # compute mean values
     quantile_099_mean = np.mean(test_099_quantile)
@@ -398,25 +403,26 @@ def main():
     test_099_quantile_cf.append(mae_spatial_mean1300_099_cf)
     print("counterfactual Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1300_cf)
     print("counterfactual Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1300_099_cf)
+
+    if args.no_test_members > 1:
+        # 1400
+        dpa_1400_cf_raw_pt = torch.from_numpy(dpa_1400_cf_raw.values)
+        qu_gc_diff1400_cf, mae_spatial_mean1400_cf = c_quantiles(eth_cf_1400_test_reduced, dpa_1400_cf_raw_pt, quantiles)
+        qu_gc_diff1400_099_cf, mae_spatial_mean1400_099_cf = c_quantiles(eth_cf_1400_test_reduced, dpa_1400_cf_raw_pt, torch.tensor(0.99))
+        test_all_quantiles_cf.append(mae_spatial_mean1400_cf)
+        test_099_quantile_cf.append(mae_spatial_mean1400_099_cf)
+        print("counterfactual Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1400_cf)
+        print("counterfactual Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1400_099_cf)
     
-    # 1400
-    dpa_1400_cf_raw_pt = torch.from_numpy(dpa_1400_cf_raw.values)
-    qu_gc_diff1400_cf, mae_spatial_mean1400_cf = c_quantiles(eth_cf_1400_test_reduced, dpa_1400_cf_raw_pt, quantiles)
-    qu_gc_diff1400_099_cf, mae_spatial_mean1400_099_cf = c_quantiles(eth_cf_1400_test_reduced, dpa_1400_cf_raw_pt, torch.tensor(0.99))
-    test_all_quantiles_cf.append(mae_spatial_mean1400_cf)
-    test_099_quantile_cf.append(mae_spatial_mean1400_099_cf)
-    print("counterfactual Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1400_cf)
-    print("counterfactual Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1400_099_cf)
-
-
-    # 1500
-    #dpa_1500_cf_raw_pt = torch.from_numpy(dpa_1500_cf_raw.values)
-    #qu_gc_diff1500_cf, mae_spatial_mean1500_cf = c_quantiles(eth_cf_1500_test_reduced, dpa_1500_cf_raw_pt, quantiles)
-    #qu_gc_diff1500_099_cf, mae_spatial_mean1500_099_cf = c_quantiles(eth_cf_1500_test_reduced, dpa_1500_cf_raw_pt, torch.tensor(0.99))
-    #test_all_quantiles_cf.append(mae_spatial_mean1500_cf)
-    #test_099_quantile_cf.append(mae_spatial_mean1500_099_cf)
-    #print("counterfactual Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1500_cf)
-    #print("counterfactual Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1500_099_cf)
+    
+        # 1500
+        #dpa_1500_cf_raw_pt = torch.from_numpy(dpa_1500_cf_raw.values)
+        #qu_gc_diff1500_cf, mae_spatial_mean1500_cf = c_quantiles(eth_cf_1500_test_reduced, dpa_1500_cf_raw_pt, quantiles)
+        #qu_gc_diff1500_099_cf, mae_spatial_mean1500_099_cf = c_quantiles(eth_cf_1500_test_reduced, dpa_1500_cf_raw_pt, torch.tensor(0.99))
+        #test_all_quantiles_cf.append(mae_spatial_mean1500_cf)
+        #test_099_quantile_cf.append(mae_spatial_mean1500_099_cf)
+        #print("counterfactual Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1500_cf)
+        #print("counterfactual Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1500_099_cf)
 
     # compute mean values
     quantile_099_mean_cf = np.mean(test_099_quantile_cf)
@@ -445,7 +451,11 @@ def main():
     ### Factual ###
     mae_means = []
     mae099_means = []
-    for y_test_np, dpa_xxxx_fact_raw in zip([eth_fact_1300_test_reduced, eth_fact_1400_test_reduced, eth_fact_1500_test_reduced], [dpa_1300_fact_raw, dpa_1400_fact_raw, dpa_1500_fact_raw]):
+
+    through = zip([eth_fact_1300_test_reduced], [dpa_1300_fact_raw])
+    if args.no_test_members > 1:
+        through = zip([eth_fact_1300_test_reduced, eth_fact_1400_test_reduced, eth_fact_1500_test_reduced], [dpa_1300_fact_raw, dpa_1400_fact_raw, dpa_1500_fact_raw])
+    for y_test_np, dpa_xxxx_fact_raw in through:
         mae_list = []
         mae099_list = []
         for i in range(648):
@@ -476,7 +486,11 @@ def main():
     ### Counterfactual ###
     mae_means_cf = []
     mae099_means_cf = []
-    for y_test_np, dpa_xxxx_cf_raw in zip([eth_cf_1300_test_reduced, eth_cf_1400_test_reduced, eth_cf_1500_test_reduced], [dpa_1300_cf_raw, dpa_1400_cf_raw, dpa_1500_cf_raw]):
+    
+    through_cf = zip([eth_cf_1300_test_reduced], [dpa_1300_cf_raw])
+    if args.no_test_members > 1:
+        through_cf = zip([eth_cf_1300_test_reduced, eth_cf_1400_test_reduced, eth_cf_1500_test_reduced], [dpa_1300_cf_raw, dpa_1400_cf_raw, dpa_1500_cf_raw])
+    for y_test_np, dpa_xxxx_cf_raw in through_cf:
         mae_list = []
         mae099_list = []
         for i in range(648):
@@ -506,7 +520,6 @@ def main():
     log_print(log_file, f"counterfactual 095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): {np.mean(mae099_means_cf)}")
     
 
-    
     ########################
     ### Autocorrelations ###
     ########################
@@ -636,12 +649,19 @@ def main():
     print("DPA tensor list factual element shape:", dpa_list[0].shape) # list elements contain all timesteps 14307 (3 x 4769)
     
     e_loss_array_1300 = energy_loss_per_gc(eth_fact_1300_test_reduced, dpa_list, start_idx, end_idx, mask_x_te)
-    e_loss_array_1400 = energy_loss_per_gc(eth_fact_1400_test_reduced, dpa_list, start_idx_1400, end_idx_1400, mask_x_te)
-    e_loss_array_1500 = energy_loss_per_gc(eth_fact_1500_test_reduced, dpa_list, start_idx_1500, end_idx_1500, mask_x_te)
+    if args.no_test_members > 1:
+        e_loss_array_1400 = energy_loss_per_gc(eth_fact_1400_test_reduced, dpa_list, start_idx_1400, end_idx_1400, mask_x_te)
+        e_loss_array_1500 = energy_loss_per_gc(eth_fact_1500_test_reduced, dpa_list, start_idx_1500, end_idx_1500, mask_x_te)
 
-    e_loss_test_mean = np.mean([e_loss_array_1300[0,:].mean(), e_loss_array_1400[0,:].mean(), e_loss_array_1500[0,:].mean()])
-    s1_loss_test_mean = np.mean([e_loss_array_1300[1,:].mean(), e_loss_array_1400[1,:].mean(), e_loss_array_1500[1,:].mean()])
-    s2_loss_test_mean = np.mean([e_loss_array_1300[2,:].mean(), e_loss_array_1400[2,:].mean(), e_loss_array_1500[2,:].mean()])
+    
+    e_loss_test_mean = np.mean([e_loss_array_1300[0,:].mean()])
+    s1_loss_test_mean = np.mean([e_loss_array_1300[1,:].mean()])
+    s2_loss_test_mean = np.mean([e_loss_array_1300[2,:].mean()])
+    
+    if args.no_test_members > 1:
+        e_loss_test_mean = np.mean([e_loss_array_1300[0,:].mean(), e_loss_array_1400[0,:].mean(), e_loss_array_1500[0,:].mean()])
+        s1_loss_test_mean = np.mean([e_loss_array_1300[1,:].mean(), e_loss_array_1400[1,:].mean(), e_loss_array_1500[1,:].mean()])
+        s2_loss_test_mean = np.mean([e_loss_array_1300[2,:].mean(), e_loss_array_1400[2,:].mean(), e_loss_array_1500[2,:].mean()])
     
     log_print(log_file, f"Factual Energy-Score spatial mean across test members: {e_loss_test_mean}")
     log_print(log_file, f"Factual S1-Score spatial mean across test members: {s1_loss_test_mean}")
@@ -743,12 +763,20 @@ def main():
     print("DPA tensor list cf element shape:", dpa_list_cf[0].shape)
     
     e_loss_array_1300_cf = energy_loss_per_gc(eth_cf_1300_test_reduced, dpa_list_cf, start_idx, end_idx, mask_x_te)
-    e_loss_array_1400_cf = energy_loss_per_gc(eth_cf_1400_test_reduced, dpa_list_cf, start_idx_1400, end_idx_1400, mask_x_te)
-    e_loss_array_1500_cf = energy_loss_per_gc(eth_cf_1500_test_reduced, dpa_list_cf, start_idx_1500, end_idx_1500, mask_x_te)
+    
+    if args.no_test_members > 1:
+        e_loss_array_1400_cf = energy_loss_per_gc(eth_cf_1400_test_reduced, dpa_list_cf, start_idx_1400, end_idx_1400, mask_x_te)
+        e_loss_array_1500_cf = energy_loss_per_gc(eth_cf_1500_test_reduced, dpa_list_cf, start_idx_1500, end_idx_1500, mask_x_te)
 
-    e_loss_test_mean_cf = np.mean([e_loss_array_1300_cf[0,:].mean(), e_loss_array_1400_cf[0,:].mean(), e_loss_array_1500_cf[0,:].mean()])
-    s1_loss_test_mean_cf = np.mean([e_loss_array_1300_cf[1,:].mean(), e_loss_array_1400_cf[1,:].mean(), e_loss_array_1500_cf[1,:].mean()])
-    s2_loss_test_mean_cf = np.mean([e_loss_array_1300_cf[2,:].mean(), e_loss_array_1400_cf[2,:].mean(), e_loss_array_1500_cf[2,:].mean()])
+
+    e_loss_test_mean_cf = np.mean([e_loss_array_1300_cf[0,:].mean()])
+    s1_loss_test_mean_cf = np.mean([e_loss_array_1300_cf[1,:].mean()])
+    s2_loss_test_mean_cf = np.mean([e_loss_array_1300_cf[2,:].mean()])
+    
+    if args.no_test_members > 1:
+        e_loss_test_mean_cf = np.mean([e_loss_array_1300_cf[0,:].mean(), e_loss_array_1400_cf[0,:].mean(), e_loss_array_1500_cf[0,:].mean()])
+        s1_loss_test_mean_cf = np.mean([e_loss_array_1300_cf[1,:].mean(), e_loss_array_1400_cf[1,:].mean(), e_loss_array_1500_cf[1,:].mean()])
+        s2_loss_test_mean_cf = np.mean([e_loss_array_1300_cf[2,:].mean(), e_loss_array_1400_cf[2,:].mean(), e_loss_array_1500_cf[2,:].mean()])
     
     log_print(log_file, f"Counterfactual Energy-Score spatial mean across test members: {e_loss_test_mean_cf}")
     log_print(log_file, f"Counterfactual S1-Score spatial mean across test members: {s1_loss_test_mean_cf}")
@@ -801,30 +829,33 @@ def main():
     
     
     
-    
     ###########################
     ### PEARSON CORRELATION ###
     ###########################
     # mean of restored factual DPA ensemble
     #dpa_ens_mean_restored = dpa_ensemble_fact_restored.TREFHT.mean(dim="ensemble_member")
     dpa_ens_mean_fact_1300_restored = dpa_1300_fact_restored.mean(dim="ensemble_member")
-    dpa_ens_mean_fact_1400_restored = dpa_1400_fact_restored.mean(dim="ensemble_member")
-    dpa_ens_mean_fact_1500_restored = dpa_1500_fact_restored.mean(dim="ensemble_member")
+    if args.no_test_members > 1:
+        dpa_ens_mean_fact_1400_restored = dpa_1400_fact_restored.mean(dim="ensemble_member")
+        dpa_ens_mean_fact_1500_restored = dpa_1500_fact_restored.mean(dim="ensemble_member")
 
     # mean of restored counterfactual DPA ensemble
     dpa_ens_mean_cf_1300_restored = dpa_1300_cf_restored.mean(dim="ensemble_member")
-    dpa_ens_mean_cf_1400_restored = dpa_1400_cf_restored.mean(dim="ensemble_member")
-    dpa_ens_mean_cf_1500_restored = dpa_1500_cf_restored.mean(dim="ensemble_member")
+    if args.no_test_members > 1:
+        dpa_ens_mean_cf_1400_restored = dpa_1400_cf_restored.mean(dim="ensemble_member")
+        dpa_ens_mean_cf_1500_restored = dpa_1500_cf_restored.mean(dim="ensemble_member")
 
     # mean of raw factual ensemble
     dpa_ens_mean_fact_1300_raw = dpa_1300_fact_raw.mean(dim="ensemble_member")
-    dpa_ens_mean_fact_1400_raw = dpa_1400_fact_raw.mean(dim="ensemble_member")
-    dpa_ens_mean_fact_1500_raw = dpa_1500_fact_raw.mean(dim="ensemble_member")
+    if args.no_test_members > 1:
+        dpa_ens_mean_fact_1400_raw = dpa_1400_fact_raw.mean(dim="ensemble_member")
+        dpa_ens_mean_fact_1500_raw = dpa_1500_fact_raw.mean(dim="ensemble_member")
 
     # mean of raw counterfactual ensemble
     dpa_ens_mean_cf_1300_raw = dpa_1300_cf_raw.mean(dim="ensemble_member")
-    dpa_ens_mean_cf_1400_raw = dpa_1400_cf_raw.mean(dim="ensemble_member")
-    dpa_ens_mean_cf_1500_raw = dpa_1500_cf_raw.mean(dim="ensemble_member")
+    if args.no_test_members > 1:
+        dpa_ens_mean_cf_1400_raw = dpa_1400_cf_raw.mean(dim="ensemble_member")
+        dpa_ens_mean_cf_1500_raw = dpa_1500_cf_raw.mean(dim="ensemble_member")
 
     ### Factual ###
     ###############
@@ -835,8 +866,9 @@ def main():
 
     ## turn dpa ens (mean) into torch array
     dpa_ens_mean_fact_1300_raw_pt = torch.from_numpy(dpa_ens_mean_fact_1300_raw.values) #dpa_ens_mean_pt
-    dpa_ens_mean_fact_1400_raw_pt = torch.from_numpy(dpa_ens_mean_fact_1400_raw.values)
-    dpa_ens_mean_fact_1500_raw_pt = torch.from_numpy(dpa_ens_mean_fact_1500_raw.values)
+    if args.no_test_members > 1:
+        dpa_ens_mean_fact_1400_raw_pt = torch.from_numpy(dpa_ens_mean_fact_1400_raw.values)
+        dpa_ens_mean_fact_1500_raw_pt = torch.from_numpy(dpa_ens_mean_fact_1500_raw.values)
     # check shapes and types
     #print("dpa_ens_mean_pt shape", dpa_ens_mean_fact_1300_raw_pt.shape)
 
@@ -844,18 +876,22 @@ def main():
     #print("Now calculating pearson correlation")
     # test temperature vs. eg dpa_ens_mean_1300
     r_cols_1300 = evaluation.pearsonr_cols(eth_fact_1300_test_reduced, dpa_ens_mean_fact_1300_raw_pt, dim=0)  # shape: (648,)
-    r_cols_1400 = evaluation.pearsonr_cols(eth_fact_1400_test_reduced, dpa_ens_mean_fact_1400_raw_pt, dim=0)
-    r_cols_1500 = evaluation.pearsonr_cols(eth_fact_1500_test_reduced, dpa_ens_mean_fact_1500_raw_pt, dim=0)
+    if args.no_test_members > 1:
+        r_cols_1400 = evaluation.pearsonr_cols(eth_fact_1400_test_reduced, dpa_ens_mean_fact_1400_raw_pt, dim=0)
+        r_cols_1500 = evaluation.pearsonr_cols(eth_fact_1500_test_reduced, dpa_ens_mean_fact_1500_raw_pt, dim=0)
     #print("Correlation calculated ...")
     #print(type(r_cols))
     print(type(r_cols_1300))
     print(r_cols_1300.shape)
     # mean per test member
     r_spat_mean_1300 = r_cols_1300.mean()
-    r_spat_mean_1400 = r_cols_1400.mean()
-    r_spat_mean_1500 = r_cols_1500.mean()
+    if args.no_test_members > 1:
+        r_spat_mean_1400 = r_cols_1400.mean()
+        r_spat_mean_1500 = r_cols_1500.mean()
 
-    r_spat_mean_all_test_members = (r_spat_mean_1300 + r_spat_mean_1400 + r_spat_mean_1500) / 3
+    r_spat_mean_all_test_members = r_spat_mean_1300
+    if args.no_test_members > 1:
+        r_spat_mean_all_test_members = (r_spat_mean_1300 + r_spat_mean_1400 + r_spat_mean_1500) / 3
     log_print(log_file, f"spatial mean correlation mean across test members (ETH 1300,1400,1500): {r_spat_mean_all_test_members}")
 
     
@@ -885,16 +921,17 @@ def main():
     ######################
 
     ## turn dpa ens (mean) into torch array
-    dpa_ens_mean_cf_1300_raw_pt = torch.from_numpy(dpa_ens_mean_cf_1300_raw.values) #dpa_ens_mean_pt
+    #dpa_ens_mean_cf_1300_raw_pt = torch.from_numpy(dpa_ens_mean_cf_1300_raw.values) #dpa_ens_mean_pt
 
     # calculate correlation
-    r_cols_cf = evaluation.pearsonr_cols(eth_cf_1300_test_reduced, dpa_ens_mean_cf_1300_raw_pt, dim=0)  # shape: (648,)
+    #r_cols_cf = evaluation.pearsonr_cols(eth_cf_1300_test_reduced, dpa_ens_mean_cf_1300_raw_pt, dim=0)  # shape: (648,)
 
     ###
     ## turn dpa ens (mean) into torch array
     dpa_ens_mean_cf_1300_raw_pt = torch.from_numpy(dpa_ens_mean_cf_1300_raw.values) #dpa_ens_mean_pt
-    dpa_ens_mean_cf_1400_raw_pt = torch.from_numpy(dpa_ens_mean_cf_1400_raw.values)
-    dpa_ens_mean_cf_1500_raw_pt = torch.from_numpy(dpa_ens_mean_cf_1500_raw.values)
+    if args.no_test_members > 1:
+        dpa_ens_mean_cf_1400_raw_pt = torch.from_numpy(dpa_ens_mean_cf_1400_raw.values)
+        dpa_ens_mean_cf_1500_raw_pt = torch.from_numpy(dpa_ens_mean_cf_1500_raw.values)
     # check shapes and types
     #print("dpa_ens_mean_pt shape", dpa_ens_mean_fact_1300_raw_pt.shape)
 
@@ -902,24 +939,28 @@ def main():
     #print("Now calculating pearson correlation")
     # test temperature vs. eg dpa_ens_mean_1300
     r_cols_1300_cf = evaluation.pearsonr_cols(eth_cf_1300_test_reduced, dpa_ens_mean_cf_1300_raw_pt, dim=0)  # shape: (648,)
-    r_cols_1400_cf = evaluation.pearsonr_cols(eth_cf_1400_test_reduced, dpa_ens_mean_cf_1400_raw_pt, dim=0)
-    r_cols_1500_cf = evaluation.pearsonr_cols(eth_cf_1500_test_reduced, dpa_ens_mean_cf_1500_raw_pt, dim=0)
+    if args.no_test_members > 1:
+        r_cols_1400_cf = evaluation.pearsonr_cols(eth_cf_1400_test_reduced, dpa_ens_mean_cf_1400_raw_pt, dim=0)
+        r_cols_1500_cf = evaluation.pearsonr_cols(eth_cf_1500_test_reduced, dpa_ens_mean_cf_1500_raw_pt, dim=0)
     #print("Correlation calculated ...")
     #print(type(r_cols))
     print(type(r_cols_1300))
     print(r_cols_1300.shape)
     # mean per test member
     r_spat_mean_1300_cf = r_cols_1300_cf.mean()
-    r_spat_mean_1400_cf = r_cols_1400_cf.mean()
-    r_spat_mean_1500_cf = r_cols_1500_cf.mean()
+    if args.no_test_members > 1:
+        r_spat_mean_1400_cf = r_cols_1400_cf.mean()
+        r_spat_mean_1500_cf = r_cols_1500_cf.mean()
 
-    r_spat_mean_all_test_members_cf = (r_spat_mean_1300_cf + r_spat_mean_1400_cf + r_spat_mean_1500_cf) / 3
-    log_print(log_file, f"counterfactualspatial mean correlation mean across test members (ETH 1300,1400,1500): {r_spat_mean_all_test_members_cf}")
+    r_spat_mean_all_test_members_cf = r_spat_mean_1300_cf
+    if args.no_test_members > 1:
+        r_spat_mean_all_test_members_cf = (r_spat_mean_1300_cf + r_spat_mean_1400_cf + r_spat_mean_1500_cf) / 3
+    log_print(log_file, f"counterfactualspatial mean correlation mean across test set (ETH 1300,1400,1500): {r_spat_mean_all_test_members_cf}")
     ###
 
     # restore nans
     # add dimension for function ut.restore_nan_columns to work correctly
-    corr_spatial_pre_cf = ut.restore_nan_columns(r_cols_cf[None, :], mask_x_te)
+    corr_spatial_pre_cf = ut.restore_nan_columns(r_cols_1300_cf[None, :], mask_x_te)
 
     corr_spatial_cf = ut.torch_to_dataarray(corr_spatial_pre_cf, ds_test, name="Pearson correlation coefficient")
 
@@ -937,14 +978,19 @@ def main():
     ################
 
     r2_1300 = evaluation.r2_score(eth_fact_1300_test_reduced, dpa_ens_mean_fact_1300_raw_pt, dim=0)
-    r2_1400 = evaluation.r2_score(eth_fact_1400_test_reduced, dpa_ens_mean_fact_1400_raw_pt, dim=0)
-    r2_1500 = evaluation.r2_score(eth_fact_1500_test_reduced, dpa_ens_mean_fact_1500_raw_pt, dim=0)
+    if args.no_test_members > 1:
+        r2_1400 = evaluation.r2_score(eth_fact_1400_test_reduced, dpa_ens_mean_fact_1400_raw_pt, dim=0)
+        r2_1500 = evaluation.r2_score(eth_fact_1500_test_reduced, dpa_ens_mean_fact_1500_raw_pt, dim=0)
     
     
     print(type(r2_1300))
     print(r2_1300.shape)
 
-    mean_r2 = ((r2_1300 + r2_1400 + r2_1500) / 3).mean()
+    mean_r2 = r2_1300
+    
+    if args.no_test_members > 1:
+        mean_r2 = ((r2_1300 + r2_1400 + r2_1500) / 3).mean()
+    
     print("Mean R2:", mean_r2)
 
     
@@ -1000,14 +1046,19 @@ def main():
         return ri_vals
         
     ri_vals_1300 = ri_index(dpa_1300_fact_raw, eth_fact_1300_test_reduced)
-    ri_vals_1400 = ri_index(dpa_1400_fact_raw, eth_fact_1400_test_reduced)
-    ri_vals_1500 = ri_index(dpa_1500_fact_raw, eth_fact_1500_test_reduced)
+    
+    if args.no_test_members > 1:
+        ri_vals_1400 = ri_index(dpa_1400_fact_raw, eth_fact_1400_test_reduced)
+        ri_vals_1500 = ri_index(dpa_1500_fact_raw, eth_fact_1500_test_reduced)
 
     ri_spat_mean_1300 = ri_vals_1300.mean()
-    ri_spat_mean_1400 = ri_vals_1400.mean()
-    ri_spat_mean_1500 = ri_vals_1500.mean()
+    if args.no_test_members > 1:
+        ri_spat_mean_1400 = ri_vals_1400.mean()
+        ri_spat_mean_1500 = ri_vals_1500.mean()
 
-    ri_spat_mean_total = (ri_spat_mean_1300 + ri_spat_mean_1400 + ri_spat_mean_1500) / 3
+    ri_spat_mean_total = ri_spat_mean_1300
+    if args.no_test_members > 1:
+        ri_spat_mean_total = (ri_spat_mean_1300 + ri_spat_mean_1400 + ri_spat_mean_1500) / 3
     log_print(log_file, f"Factual RI spatial mean, mean across test members (ETH 1300,1400,1500): {ri_spat_mean_total}")
 
     
@@ -1054,14 +1105,18 @@ def main():
     ######################
 
     ri_vals_1300_cf = ri_index(dpa_1300_cf_raw, eth_cf_1300_test_reduced)
-    ri_vals_1400_cf = ri_index(dpa_1400_cf_raw, eth_cf_1400_test_reduced)
-    ri_vals_1500_cf = ri_index(dpa_1500_cf_raw, eth_cf_1500_test_reduced)
+    if args.no_test_members > 1:
+        ri_vals_1400_cf = ri_index(dpa_1400_cf_raw, eth_cf_1400_test_reduced)
+        ri_vals_1500_cf = ri_index(dpa_1500_cf_raw, eth_cf_1500_test_reduced)
 
     ri_spat_mean_1300_cf = ri_vals_1300_cf.mean()
-    ri_spat_mean_1400_cf = ri_vals_1400_cf.mean()
-    ri_spat_mean_1500_cf = ri_vals_1500_cf.mean()
+    if args.no_test_members > 1:
+        ri_spat_mean_1400_cf = ri_vals_1400_cf.mean()
+        ri_spat_mean_1500_cf = ri_vals_1500_cf.mean()
 
-    ri_spat_mean_total_cf = (ri_spat_mean_1300_cf + ri_spat_mean_1400_cf + ri_spat_mean_1500_cf) / 3
+    ri_spat_mean_total_cf = ri_spat_mean_1300_cf
+    if args.no_test_members > 1:
+        ri_spat_mean_total_cf = (ri_spat_mean_1300_cf + ri_spat_mean_1400_cf + ri_spat_mean_1500_cf) / 3
     log_print(log_file, f"Counterfactual RI spatial mean, mean across test members (ETH 1300,1400,1500): {ri_spat_mean_total_cf}")
     
 
@@ -1117,7 +1172,6 @@ def main():
 
     # Standard deviation along dim=0
     std0_dpa_ens = dpa_1300_fact_raw.std(dim="ensemble_member")
-    # std0_dpa_ens = dpa_ensemble_raw.TREFHT.std(dim="ensemble_member") # --> original code
 
     ### PLOT TIME SERIES OF 1 GRID CELL ###
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize_ts)
@@ -1146,209 +1200,66 @@ def main():
     ger_lat_max = 54
     ger_lon_min = 6
     ger_lon_max = 15
-    
 
-    for year in years:
-        ### Factual ###
-        fig, ax = evaluation.plot_dpa_time_series(true_t = ds_test_1300_eth_fact, 
-                                                  dpa_ens = dpa_1300_fact_restored, 
-                                                  dpa_ens_mean = dpa_ens_mean_fact_1300_restored,  
-                                                  lat_min = ger_lat_min, 
-                                                  lat_max = ger_lat_max, 
-                                                  lon_min = ger_lon_min, 
-                                                  lon_max = ger_lon_max, 
-                                                  plot_year = year,
-                                                  figsize_ts = figsize_ts,
-                                                  title_fontsize = title_fontsize,
-                                                  title = f"Factual Temperatures Germany {year}", 
-                                                  climate = "Factual"
-                                                  )        
-        fig.savefig(f"{save_path_eth}/Germany/Germany_mean_fact_T_ts_{year}.png")
-        plt.show()
-    
-        ### Counterfactual ###
-        fig, ax = evaluation.plot_dpa_time_series(true_t = ds_test_1300_eth_cf, 
-                                                  dpa_ens = dpa_1300_cf_restored, 
-                                                  dpa_ens_mean = dpa_ens_mean_cf_1300_restored, 
-                                                  lat_min = ger_lat_min, 
-                                                  lat_max = ger_lat_max, 
-                                                  lon_min = ger_lon_min, 
-                                                  lon_max = ger_lon_max, 
-                                                  plot_year = year,
-                                                  figsize_ts = figsize_ts,
-                                                  title_fontsize = title_fontsize,
-                                                  title = f"Counterfactual Temperatures Germany {year}",
-                                                  climate = "Counterfactual")        
-        fig.savefig(f"{save_path_eth}/Germany/Germany_mean_cf_T_ts_{year}.png")
-        plt.show()
-    
-    
-    ### Spain ###
-
-    # coordinates
+    # Spain
     sp_lat_min = 38
     sp_lat_max = 42
     sp_lon_min = -8
     sp_lon_max = 0
+    
 
-    for year in years:
-        ### Factual ###
-        fig, ax = evaluation.plot_dpa_time_series(true_t = ds_test_1300_eth_fact, 
-                                                  dpa_ens = dpa_1300_fact_restored, 
-                                                  dpa_ens_mean = dpa_ens_mean_fact_1300_restored,  
-                                                  lat_min = sp_lat_min, 
-                                                  lat_max = sp_lat_max, 
-                                                  lon_min = sp_lon_min, 
-                                                  lon_max = sp_lon_max, 
-                                                  plot_year = year,
-                                                  figsize_ts = figsize_ts,
-                                                  title_fontsize = title_fontsize,
-                                                  title = f"Factual Temperatures Spain {year}", 
-                                                  climate = "Factual"
-                                                  )        
-        fig.savefig(f"{save_path_eth}/Spain/Spain_mean_fact_T_ts_{year}.png")
-        plt.show()
-
-        ### Counterfactual ###
-        fig, ax = evaluation.plot_dpa_time_series(true_t = ds_test_1300_eth_cf, 
-                                                  dpa_ens = dpa_1300_cf_restored, 
-                                                  dpa_ens_mean = dpa_ens_mean_cf_1300_restored, 
-                                                  lat_min = sp_lat_min, 
-                                                  lat_max = sp_lat_max, 
-                                                  lon_min = sp_lon_min, 
-                                                  lon_max = sp_lon_max, 
-                                                  plot_year = year,
-                                                  figsize_ts = figsize_ts,
-                                                  title_fontsize = title_fontsize,
-                                                  title = f"Counterfactual Temperatures Spain {year}",
-                                                  climate = "Counterfactual")        
-        fig.savefig(f"{save_path_eth}/Spain/Spain_mean_cf_T_ts_{year}.png")
-        plt.show()
-    
-    
-    
-                          
-
-    ### True (Test) temperature ###
-    # true temperature - germany spatial average
-    #temp_true_ger_pre = ds_test_1300_eth_fact.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
-    #cf_temp_true_ger_pre = ds_test_1300_eth_cf.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max))
-
-    
-    # create weights
-    # 1) define weights as above
-    #weights_ger = np.cos(np.deg2rad(temp_true_ger_pre['lat']))
-    
-    # 2) wrap in a DataArray so xarray knows which dim it belongs to
-    #w_da_ger = xr.DataArray(weights_ger, coords={'lat': temp_true_ger_pre['lat']}, dims=['lat'])
-    
-    #temp_true_ger = temp_true_ger_pre.weighted(w_da_ger).mean(dim=('lat', 'lon'))
-    #cf_temp_true_ger = cf_temp_true_ger_pre.weighted(w_da_ger).mean(dim=('lat', 'lon'))
-    #print("cf_temp_true_ger:", cf_temp_true_ger)
-
-
-    ### DPA Ensemble ###
-    # standard deviation, germany mean
-    #dpa_ens_std = dpa_1300_fact_restored.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max)).std(dim="ensemble_member") # before: dpa_ensemble_restored.TREFHT
-    #dpa_ens_std_ger = dpa_ens_std.weighted(w_da_ger).mean(dim=('lat', 'lon'))
-
-    # ensemble mean, germany mean 
-    #dpa_ens_mean_ger = dpa_ens_mean_fact_1300_restored.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon')) # before: dpa_ensemble_restored
-    #print(dpa_ens_mean_ger.shape)
-    #dpa_ens_mean_ger_cf = dpa_ens_mean_cf_1300_restored.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
-
-    # ensemble germany average (ensemble_member, )
-    #dpa_ens_ger_1300 = dpa_1300_fact_restored.sel(lat=slice(ger_lat_min, ger_lat_max), lon=slice(ger_lon_min, ger_lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
-    #print("dpa_ens_ger_1300:", dpa_ens_ger_1300.values.T.shape)
-    
-    
-    # plot
-    #n_stds = 2
-    #lower_env = dpa_ens_mean_ger + n_stds * dpa_ens_std_ger 
-    #upper_env = dpa_ens_mean_ger - n_stds * dpa_ens_std_ger
-
-    #print("dpa_ens_mean_ger:", dpa_ens_mean_ger)
-    #print("lower env:", lower_env)
-    #print("upper env:", upper_env)
-    
-    #fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize_ts)
-
-    #year = "2040"
-    #temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label="Factual Truth")
-    #dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label="DPA factual mean")
-    
-    # ADD COUNTERFACTUAL TEMPERATURE HERE
-    #cf_temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label="CF Truth")
-    #dpa_ens_mean_ger_cf.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, label="DPA CF mean")
-    # ################################## #
-    
-    
-    # fill_between needs numpy arrays + axis
-    #ax.fill_between(
-    #    dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).time.values,   # x-axis values (datetime64)
-    #    lower_env.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values,        # lower bound
-    #    upper_env.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values,        # upper bound
-    #    color="tab:orange", alpha=0.2, label=f"+/- {n_stds} std"
-    #)
-
-    
-    
-    #ax.legend()
-    #plt.tight_layout()
-    #ax.set_title("DPA mean-Temperature in Germany Domain", fontsize=title_fontsize)
-    #fig.savefig("ETH_analysis_results/Germany_mean_T_ts.png")
-    #plt.show()
+   
 
     ####################
     ### Violin plots ###
     ####################
 
     ### max temperatures ###
-    fig = evaluation.plot_violins(truth = ds_test_1300_eth_fact, 
-                            dpa_ensemble = dpa_1300_fact_restored,
-                            save_path = f"{save_path_eth}",
-                            lat_min = ger_lat_min,
-                            lat_max = ger_lat_max,
-                            lon_min = ger_lon_min,
-                            lon_max = ger_lon_max
-                            )
+    # fig = evaluation.plot_violins(truth = ds_test_1300_eth_fact, 
+    #                         dpa_ensemble = dpa_1300_fact_restored,
+    #                         save_path = f"{save_path_eth}",
+    #                         lat_min = ger_lat_min,
+    #                         lat_max = ger_lat_max,
+    #                         lon_min = ger_lon_min,
+    #                         lon_max = ger_lon_max
+    #                         )
 
 
 
-    fig = evaluation.plot_violins(truth = ds_test_1300_eth_cf, 
-                            dpa_ensemble = dpa_1300_cf_restored,
-                            save_path = f"{save_path_eth}",
-                            lat_min = ger_lat_min,
-                            lat_max = ger_lat_max,
-                            lon_min = ger_lon_min,
-                            lon_max = ger_lon_max,
-                            in_fact_for_cf = ds_test_1300_eth_fact
-                            )
+    # fig = evaluation.plot_violins(truth = ds_test_1300_eth_cf, 
+    #                         dpa_ensemble = dpa_1300_cf_restored,
+    #                         save_path = f"{save_path_eth}",
+    #                         lat_min = ger_lat_min,
+    #                         lat_max = ger_lat_max,
+    #                         lon_min = ger_lon_min,
+    #                         lon_max = ger_lon_max,
+    #                         in_fact_for_cf = ds_test_1300_eth_fact
+    #                         )
 
 
-    ### random temperatures ###
-    fig = evaluation.plot_violins(truth = ds_test_1300_eth_fact, 
-                            dpa_ensemble = dpa_1300_fact_restored,
-                            save_path = f"{save_path_eth}",
-                            lat_min = ger_lat_min,
-                            lat_max = ger_lat_max,
-                            lon_min = ger_lon_min,
-                            lon_max = ger_lon_max,
-                            mode="random"
-                            )
+    # ### random temperatures ###
+    # fig = evaluation.plot_violins(truth = ds_test_1300_eth_fact, 
+    #                         dpa_ensemble = dpa_1300_fact_restored,
+    #                         save_path = f"{save_path_eth}",
+    #                         lat_min = ger_lat_min,
+    #                         lat_max = ger_lat_max,
+    #                         lon_min = ger_lon_min,
+    #                         lon_max = ger_lon_max,
+    #                         mode="random"
+    #                         )
 
 
 
-    fig = evaluation.plot_violins(truth = ds_test_1300_eth_cf, 
-                            dpa_ensemble = dpa_1300_cf_restored,
-                            save_path = f"{save_path_eth}",
-                            lat_min = ger_lat_min,
-                            lat_max = ger_lat_max,
-                            lon_min = ger_lon_min,
-                            lon_max = ger_lon_max,
-                            in_fact_for_cf = ds_test_1300_eth_fact,
-                            mode="random"
-                            )
+    # fig = evaluation.plot_violins(truth = ds_test_1300_eth_cf, 
+    #                         dpa_ensemble = dpa_1300_cf_restored,
+    #                         save_path = f"{save_path_eth}",
+    #                         lat_min = ger_lat_min,
+    #                         lat_max = ger_lat_max,
+    #                         lon_min = ger_lon_min,
+    #                         lon_max = ger_lon_max,
+    #                         in_fact_for_cf = ds_test_1300_eth_fact,
+    #                         mode="random"
+    #                         )
 
     ######################
     ### Rank Histogram ###

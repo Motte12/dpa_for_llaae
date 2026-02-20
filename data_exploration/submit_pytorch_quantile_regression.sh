@@ -1,10 +1,10 @@
 #!/bin/bash
 #SBATCH --job-name=pt_qu_regr
 #SBATCH --cpus-per-task=1
-#SBATCH --partition=paula
-#SBATCH --gpus=a30:1
-#SBATCH --mem=400G
-#SBATCH --time=1-5:20
+#SBATCH --partition=clara
+#SBATCH --gpus=rtx2080ti:1
+#SBATCH --mem=200G
+#SBATCH --time=0-5:20
 
 # Optional: print job info
 echo "Starting job on $(hostname) at $(date)"
@@ -18,7 +18,7 @@ echo "Running from: $(pwd)"
 timestamp=$(date +"%Y-%m-%d_%H-%M")
 
 # Name prefix
-name="/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/baseline_quantile_regression/v5_data_quantile_regression_ger_gradient_descent"
+name="/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/baseline_quantile_regression/v6_data_quantile_regression_ger_gradient_descent"
 
 # Create directory with timestamp
 dirname="${name}_${timestamp}"
@@ -29,9 +29,9 @@ echo "Created directory: $dirname"
 
 # Run the preprocessing script starting from line 72
 ~/.conda/envs/dpa/bin/python pytorch_quantile_regression.py \
-    --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/v5_dpa_train_settings.json" \
+    --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/v6_dpa_train_settings.json" \
     --delta 0.00001 \
-    --n_epochs 200 \
+    --n_epochs 500 \
     --save_path "$dirname/" \
     --standardize_predictors 1
 

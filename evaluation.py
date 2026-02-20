@@ -200,16 +200,19 @@ def plot_multiple_dpa_time_series(true_t, dpa_ens, dpa_ens_mean, true_t_fact, dp
     ### DPA Ensemble COUNTERFACTUAL ###
     # standard deviation, germany mean
     dpa_ens_std = dpa_ens.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).std(dim="ensemble_member") # before: dpa_ensemble_restored.TREFHT
+    w_da_ger = xr.DataArray(weights_ger, coords={'lat': dpa_ens_std['lat']}, dims=['lat'])
     dpa_ens_std_ger = dpa_ens_std.weighted(w_da_ger).mean(dim=('lat', 'lon'))
 
     # ensemble mean, germany mean 
-    dpa_ens_mean_ger = dpa_ens_mean.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon')) # before: dpa_ensemble_restored
-    print(dpa_ens_mean_ger.shape)
+    dpa_ens_mean_ger_pre = dpa_ens_mean.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
+    w_da_ger = xr.DataArray(weights_ger, coords={'lat': dpa_ens_mean_ger_pre['lat']}, dims=['lat'])
+    dpa_ens_mean_ger = dpa_ens_mean_ger_pre.weighted(w_da_ger).mean(dim=('lat', 'lon')) # before: dpa_ensemble_restored
     #dpa_ens_mean_ger_cf = dpa_ens_mean_cf_1300_restored.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
 
     # ensemble germany average (ensemble_member, )
-    dpa_ens_ger_1300 = dpa_ens.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
-    print("dpa_ens_ger_1300:", dpa_ens_ger_1300.values.T.shape)
+    dpa_ens_ger_1300_pre = dpa_ens.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))#.weighted(w_da_ger).mean(dim=('lat', 'lon'))
+    w_da_ger = xr.DataArray(weights_ger, coords={'lat': dpa_ens_ger_1300_pre['lat']}, dims=['lat'])
+    dpa_ens_ger_1300 = dpa_ens_ger_1300_pre.weighted(w_da_ger).mean(dim=('lat', 'lon'))
 
     # counterfactual truth
     fact_truth_ger = true_t.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max)).weighted(w_da_ger).mean(dim=('lat', 'lon'))
@@ -257,16 +260,23 @@ def plot_multiple_dpa_time_series(true_t, dpa_ens, dpa_ens_mean, true_t_fact, dp
         print("time coordinates:", times)
         #months_days = [(t.month, t.day) for t in times]
         labels = [f'{t.month:02d}-{t.day:02d}' for t in times]
-        print("labels:", labels)
+        #print("labels:", labels)
 
         
 
         #print(months_days)
 
+        print("############")
+        print("### Data ###")
+        print("############")
         plt.plot(range(19), temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values, color="tab:cyan", linewidth=lw)
+        print(temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values)
         plt.plot(range(19), dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values, color="tab:blue", linestyle="--", linewidth=lw)
+        print(dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values)
         plt.plot(range(19), fact_truth_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values, color = "tab:orange", linewidth=lw)
+        print(fact_truth_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values)
         plt.plot(range(19), dpa_ens_mean_ger_fact.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values, color="tab:red", linestyle="--", linewidth=lw)
+        print(dpa_ens_mean_ger_fact.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).values)
         #temp_true_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, color="tab:cyan", linewidth=lw) #label="CF Truth",
         #dpa_ens_mean_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, color="tab:blue", linestyle="--", linewidth=lw) #label="CF DPA\nensemble mean",
         #fact_truth_ger.sel(time=slice(f"{year}-01-01", f"{year}-12-31")).plot(ax=ax, color = "tab:orange", linewidth=lw) #label="Factual Truth",

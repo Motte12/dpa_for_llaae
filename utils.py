@@ -816,7 +816,10 @@ def standardize_numpy(X, mean=None, std=None):
 
 
 def data_to_torch(ds, variable):
-    temp_data = ds[variable]
+    if isinstance(ds, xr.Dataset):
+        temp_data = ds[variable]
+    else:
+        temp_data = ds
     data = temp_data.transpose('time', 'lat', 'lon')
     
     # Now convert to numpy

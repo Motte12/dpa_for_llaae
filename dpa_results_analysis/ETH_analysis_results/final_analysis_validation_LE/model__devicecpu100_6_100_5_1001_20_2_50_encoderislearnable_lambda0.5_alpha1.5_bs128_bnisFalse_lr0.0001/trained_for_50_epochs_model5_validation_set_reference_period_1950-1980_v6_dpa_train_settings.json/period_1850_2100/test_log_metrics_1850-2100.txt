@@ -1,0 +1,12 @@
+=== Current Time: 2026-02-19 15:28:38 ===
+=== Quantiles ===
+all quantiles mean MAE across test members (ETH 1300,1400,1500): 0.1683497279882431
+099 quantile mean MAE across test members (ETH 1300,1400,1500): 0.2525915503501892
+coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.030497672454397724
+095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.01321181809474252
+Factual Energy-Score spatial mean across test members: 0.6499907374382019
+Factual S1-Score spatial mean across test members: 1.2837640047073364
+Factual S2-Score spatial mean across test members: 1.267546534538269
+spatial mean correlation mean across test members (ETH 1300,1400,1500): 0.9124916195869446
+Factual R^2 spatial mean, mean across test members (ETH 1300,1400,1500): 0.8306382894515991
+Factual RI spatial mean, mean across validation members: 0.08272299915552139

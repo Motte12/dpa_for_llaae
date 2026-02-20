@@ -1,0 +1,27 @@
+=== Current Time: 2026-02-05 09:07:26 ===
+=== Quantiles ===
+=== Current Time: 2026-02-05 09:11:48 ===
+=== Quantiles ===
+=== Current Time: 2026-02-05 09:13:01 ===
+=== Quantiles ===
+all quantiles mean MAE across test members (ETH 1300,1400,1500): 0.41545024514198303
+099 quantile mean MAE across test members (ETH 1300,1400,1500): 0.3039172887802124
+counterfactual, all quantiles mean MAE across test members (ETH 1300,1400,1500): 0.6025733351707458
+counterfactual, 099 quantile mean MAE across test members (ETH 1300,1400,1500): 0.47143954038619995
+coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.0869585563449382
+095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.0329724528353987
+counterfactual coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.14680757437175596
+counterfactual 095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.03239321250842418
+Spatial mean factual autocorrelation difference: -0.10588531941175461
+Spatial mean counterfactual autocorrelation difference: -0.15025004744529724
+Factual Energy-Score spatial mean across test members: 0.6936194896697998
+Factual S1-Score spatial mean across test members: 1.286888837814331
+Factual S2-Score spatial mean across test members: 1.1865386962890625
+Counterfactual Energy-Score spatial mean across test members: nan
+Counterfactual S1-Score spatial mean across test members: nan
+Counterfactual S2-Score spatial mean across test members: 1.162521243095398
+spatial mean correlation mean across test members (ETH 1300,1400,1500): 0.9168696403503418
+counterfactualspatial mean correlation mean across test set (ETH 1300,1400,1500): nan
+Factual R^2 spatial mean, mean across test members (ETH 1300,1400,1500): 0.8190084099769592
+Factual RI spatial mean, mean across test members (ETH 1300,1400,1500): 0.15130747854709625
+Counterfactual RI spatial mean, mean across test members (ETH 1300,1400,1500): 0.23281002044677734
