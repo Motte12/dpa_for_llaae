@@ -1,6 +1,7 @@
 #!/bin/bash
 
 
+
 eval "$(conda shell.bash hook)"
 conda activate dpa
 echo "DPA Environment activated"
@@ -9,7 +10,7 @@ echo "DPA Environment activated"
 # submit the two slurm job scripts
 
 # === Shared configuration ===
-NO_EPOCHS=50
+NO_EPOCHS=55
 ENS_MEMBERS=100
 MODEL_PATH="/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/v5_data_model7(bnTrue)/tuning_models/"
 MODEL="_devicecpu100_6_100_100_1001_100_2_100_encoderislearnable_lambda1.0_alpha1.0_bs128_bnisTrue_lr5e-05_pene0"
@@ -55,26 +56,26 @@ settings_file=$(jq -r '.settings_file' "$cfg")
 ##########################
 
 # Validation set ensemble
-srun -N1 -n1 python3 create_dpa_ensemble_with_LE_validation_set.py \
-    --ens_members $ENS_MEMBERS \
-    --save_path_ensemble_single $ensemble_save_path_val \
-    --model_path "$MODEL_PATH${MODEL}" \
-    --encoder_model $ENCODER \
-    --decoder_model $DECODER \
-    --latent_map_model $LATENT_MAP \
-    --no_epochs $NO_EPOCHS \
-    --standardize_predictors 1 \
-    --autoencode_only 0 \
-    --latent_dim $latent_dim \
-    --hidden_dim $hidden_dim \
-    --num_layers $num_layer \
-    --noise_dim_dec $noise_dim_dec \
-    --hidden_dim_lm $hidden_dim_lm \
-    --noise_dim_lm $noise_dim_lm \
-    --lambd $lam \
-    --bs $batch_size \
-    --bn $batch_norm \
-    --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}" &
+#srun -N1 -n1 python3 create_dpa_ensemble_with_LE_validation_set.py \
+#    --ens_members $ENS_MEMBERS \
+#    --save_path_ensemble_single $ensemble_save_path_val \
+#    --model_path "$MODEL_PATH${MODEL}" \
+#    --encoder_model $ENCODER \
+#    --decoder_model $DECODER \
+#    --latent_map_model $LATENT_MAP \
+#    --no_epochs $NO_EPOCHS \
+#    --standardize_predictors 1 \
+#    --autoencode_only 0 \
+#    --latent_dim $latent_dim \
+#    --hidden_dim $hidden_dim \
+#    --num_layers $num_layer \
+#    --noise_dim_dec $noise_dim_dec \
+#    --hidden_dim_lm $hidden_dim_lm \
+#    --noise_dim_lm $noise_dim_lm \
+#    --lambd $lam \
+#    --bs $batch_size \
+#    --bn $batch_norm \
+#    --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}" &
 
 
 # ETH ensemble
@@ -115,7 +116,7 @@ srun -N1 -n1 python3 create_dpa_ensemble_with_LE_validation_set.py \
 
 #echo "Exit ..."
 #exit
-wait
+#wait
 echo "Ensemble created, now analyzing"
 
 
@@ -134,34 +135,34 @@ for i in "${!period_start_years[@]}"; do
     echo "Epochs: ${NO_EPOCHS}"
 
     # validation set
-    srun python3 analysis_results_sheet_LE_validation_set_master_slim.py \
-        --period_start $start \
-        --period_end $end \
-        --ensemble_path $ensemble_save_path_val \
-        --no_epochs $NO_EPOCHS \
-        --ens_members $ENS_MEMBERS \
-        --calculate_e_loss_per_ti 0 \
-        --StoNet_ensemble 0 \
-        --save_path_eth "ETH_analysis_results/final_analysis_validation_LE/model_${MODEL}/trained_for_${NO_EPOCHS}_epochs_${results_save_comment_val}" \
-        --save_path_le "ETH_analysis_results/final_analysis_train_LE/model_${MODEL}/model_trained_for_${NO_EPOCHS}_epochs_${results_save_comment_val}" \
-        --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}" \
-        --no_test_members 10 \
-        --include_train_analysis 0 &
-
-    # eth test set
-    #srun python3 analysis_results_sheet_ETH_master_slim.py \
+    #srun python3 analysis_results_sheet_LE_validation_set_master_slim.py \
     #    --period_start $start \
     #    --period_end $end \
-    #    --ensemble_path $ensemble_save_path_eth \
+    #    --ensemble_path $ensemble_save_path_val \
     #    --no_epochs $NO_EPOCHS \
     #    --ens_members $ENS_MEMBERS \
     #    --calculate_e_loss_per_ti 0 \
     #    --StoNet_ensemble 0 \
-    #    --save_path_eth "ETH_analysis_results/final_analysis_eth_test_set/model_${MODEL}/trained_for_${NO_EPOCHS}_epochs_${results_save_comment_eth}" \
-    #    --save_path_le "ETH_analysis_results/final_analysis_train_LE/model_${MODEL}/model_trained_for_${NO_EPOCHS}_epochs_${results_save_comment_eth}" \
+    #    --save_path_eth "ETH_analysis_results/final_analysis_validation_LE/model_${MODEL}/trained_for_${NO_EPOCHS}_epochs_${results_save_comment_val}" \
+    #    --save_path_le "ETH_analysis_results/final_analysis_train_LE/model_${MODEL}/model_trained_for_${NO_EPOCHS}_epochs_${results_save_comment_val}" \
     #    --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}" \
-    #    --no_test_members 3 \
+    #    --no_test_members 10 \
     #    --include_train_analysis 0 &
+
+    # eth test set
+    srun python3 analysis_results_sheet_ETH_master_slim.py \
+        --period_start $start \
+        --period_end $end \
+        --ensemble_path $ensemble_save_path_eth \
+        --no_epochs $NO_EPOCHS \
+        --ens_members $ENS_MEMBERS \
+        --calculate_e_loss_per_ti 0 \
+        --StoNet_ensemble 0 \
+        --save_path_eth "ETH_analysis_results/final_analysis_eth_test_set/model_${MODEL}/trained_for_${NO_EPOCHS}_epochs_${results_save_comment_eth}" \
+        --save_path_le "ETH_analysis_results/final_analysis_train_LE/model_${MODEL}/model_trained_for_${NO_EPOCHS}_epochs_${results_save_comment_eth}" \
+        --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}" \
+        --no_test_members 3 \
+        --include_train_analysis 0 &
 
 done
 

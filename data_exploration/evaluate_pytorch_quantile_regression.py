@@ -27,6 +27,8 @@ def main():
     parser.add_argument("--qr_epoch", type=int, default=100, help="Quantile regression checkpoint/epoch to load.")
     parser.add_argument("--eval_era5", type=int, default=0, help="Whether to evaluate Era5.")
     parser.add_argument("--domain", type=str, default="GER", help="Which domain to evaluate")
+    parser.add_argument("--epochs_dae", type=int, help="Number of epochs DAE was trained.")
+    parser.add_argument("--dae_model", type=str, help="DAE model to evaluate.")
 
     args = parser.parse_args()
     print(args.data_version)
@@ -789,7 +791,7 @@ def main():
         axes[2, 1].set_axis_off()
     
         plt.tight_layout()
-        plt.savefig(f"{args.results_save_path}summary_qr_vs_dpa.png")
+        plt.savefig(f"{args.results_save_path}summary_qr{args.qr_epoch}_vs_dae_{args.epochs_dae}epochs_{args.data_version}_{args.dae_model}.png")
         # plt.show()
 
 

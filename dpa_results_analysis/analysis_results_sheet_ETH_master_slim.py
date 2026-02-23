@@ -22,6 +22,7 @@ import matplotlib.patches as mpatches
 import shutil
 from datetime import datetime
 import argparse
+from matplotlib.patches import Patch
 
 import sys
 import os
@@ -317,126 +318,264 @@ def main():
     #################
     ### Quantiles ### add for random locations?? add counterfactual??
     #################
+    if False:
+        def c_quantiles(test_data, ensemble, quantiles): # in temperature space
+            # compute per grid-cell quantiles
+            ## in test set
+            quantiles_fact_true = torch.quantile(test_data, q=quantiles, dim=0) # shape: (quantiles, features) or for 1d:
     
-    def c_quantiles(test_data, ensemble, quantiles): # in temperature space
-        # compute per grid-cell quantiles
-        ## in test set
-        quantiles_fact_true = torch.quantile(test_data, q=quantiles, dim=0) # shape: (quantiles, features) or for 1d:
-
-        ## in predicted ensemble, mean of quantiles across all ensemble members
-        if quantiles.numel() == 1:
-            print("===1D quantiles===")
-            quantiles_fact_dpa = torch.mean(torch.quantile(ensemble, q=quantiles, dim=1), dim=0) # shape: (quantiles, features)
+            ## in predicted ensemble, mean of quantiles across all ensemble members
+            if quantiles.numel() == 1:
+                print("===1D quantiles===")
+                quantiles_fact_dpa = torch.mean(torch.quantile(ensemble, q=quantiles, dim=1), dim=0) # shape: (quantiles, features)
+            
+            else:
+                quantiles_fact_dpa = torch.mean(torch.quantile(ensemble, q=quantiles, dim=1), dim=1) # shape: (quantiles, ensemble_members, features)
+    
+            
+            # mean absolute error per grid cell, across quantiles
+            if quantiles.numel() == 1:
+                qu_gc_diff = torch.abs(quantiles_fact_true - quantiles_fact_dpa)
+            else:
+                qu_gc_diff = torch.mean(torch.abs(quantiles_fact_true - quantiles_fact_dpa), dim=0)
+            
+            # spatial mean of (mean absolute error per grid-cell across quantiles)
+            mae_spatial_mean = torch.mean(qu_gc_diff)
+            
+            return qu_gc_diff, mae_spatial_mean 
+    
+        quantiles = torch.linspace(0,1,21)
+    
+        ###############
+        ### Factual ###
+        ###############
+        test_all_quantiles = []
+        test_099_quantile = []
+        # 1300
+        dpa_1300_fact_raw_pt = torch.from_numpy(dpa_1300_fact_raw.values)
+        qu_gc_diff1300, mae_spatial_mean1300 = c_quantiles(eth_fact_1300_test_reduced, dpa_1300_fact_raw_pt, quantiles)
+        qu_gc_diff1300_099, mae_spatial_mean1300_099 = c_quantiles(eth_fact_1300_test_reduced, dpa_1300_fact_raw_pt, torch.tensor(0.99))
+        test_all_quantiles.append(mae_spatial_mean1300)
+        test_099_quantile.append(mae_spatial_mean1300_099)
+        print("Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1300)
+        print("Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1300_099)
+    
+        if args.no_test_members > 1:
+            # 1400
+            dpa_1400_fact_raw_pt = torch.from_numpy(dpa_1400_fact_raw.values)
+            qu_gc_diff1400, mae_spatial_mean1400 = c_quantiles(eth_fact_1400_test_reduced, dpa_1400_fact_raw_pt, quantiles)
+            qu_gc_diff1400_099, mae_spatial_mean1400_099 = c_quantiles(eth_fact_1400_test_reduced, dpa_1400_fact_raw_pt, torch.tensor(0.99))
+            test_all_quantiles.append(mae_spatial_mean1400)
+            test_099_quantile.append(mae_spatial_mean1400_099)
+            print("Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1400)
+            print("Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1400_099)
         
-        else:
-            quantiles_fact_dpa = torch.mean(torch.quantile(ensemble, q=quantiles, dim=1), dim=1) # shape: (quantiles, ensemble_members, features)
-
         
-        # mean absolute error per grid cell, across quantiles
-        if quantiles.numel() == 1:
-            qu_gc_diff = torch.abs(quantiles_fact_true - quantiles_fact_dpa)
-        else:
-            qu_gc_diff = torch.mean(torch.abs(quantiles_fact_true - quantiles_fact_dpa), dim=0)
+            # 1500
+            dpa_1500_fact_raw_pt = torch.from_numpy(dpa_1500_fact_raw.values)
+            qu_gc_diff1500, mae_spatial_mean1500 = c_quantiles(eth_fact_1500_test_reduced, dpa_1500_fact_raw_pt, quantiles)
+            qu_gc_diff1500_099, mae_spatial_mean1500_099 = c_quantiles(eth_fact_1500_test_reduced, dpa_1500_fact_raw_pt, torch.tensor(0.99))
+            test_all_quantiles.append(mae_spatial_mean1500)
+            test_099_quantile.append(mae_spatial_mean1500_099)
+            print("Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1500)
+            print("Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1500_099)
+    
+        # compute mean values
+        quantile_099_mean = np.mean(test_099_quantile)
+        all_quantiles_mean = np.mean(test_all_quantiles)
+        print("099 quantile mean MAE across test members:", quantile_099_mean)
+        print("all quantiles mean MAE across test members:", all_quantiles_mean)
+    
+        log_print(log_file, f"all quantiles mean MAE across test members (ETH 1300,1400,1500): {all_quantiles_mean}")
+        log_print(log_file, f"099 quantile mean MAE across test members (ETH 1300,1400,1500): {quantile_099_mean}")
+    
+        ######################
+        ### Counterfactual ###
+        ######################
         
-        # spatial mean of (mean absolute error per grid-cell across quantiles)
-        mae_spatial_mean = torch.mean(qu_gc_diff)
+        test_all_quantiles_cf = []
+        test_099_quantile_cf = []
+        # 1300
         
-        return qu_gc_diff, mae_spatial_mean 
-
-    quantiles = torch.linspace(0,1,21)
-
-    ###############
-    ### Factual ###
-    ###############
-    test_all_quantiles = []
-    test_099_quantile = []
-    # 1300
-    dpa_1300_fact_raw_pt = torch.from_numpy(dpa_1300_fact_raw.values)
-    qu_gc_diff1300, mae_spatial_mean1300 = c_quantiles(eth_fact_1300_test_reduced, dpa_1300_fact_raw_pt, quantiles)
-    qu_gc_diff1300_099, mae_spatial_mean1300_099 = c_quantiles(eth_fact_1300_test_reduced, dpa_1300_fact_raw_pt, torch.tensor(0.99))
-    test_all_quantiles.append(mae_spatial_mean1300)
-    test_099_quantile.append(mae_spatial_mean1300_099)
-    print("Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1300)
-    print("Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1300_099)
-
-    if args.no_test_members > 1:
-        # 1400
-        dpa_1400_fact_raw_pt = torch.from_numpy(dpa_1400_fact_raw.values)
-        qu_gc_diff1400, mae_spatial_mean1400 = c_quantiles(eth_fact_1400_test_reduced, dpa_1400_fact_raw_pt, quantiles)
-        qu_gc_diff1400_099, mae_spatial_mean1400_099 = c_quantiles(eth_fact_1400_test_reduced, dpa_1400_fact_raw_pt, torch.tensor(0.99))
-        test_all_quantiles.append(mae_spatial_mean1400)
-        test_099_quantile.append(mae_spatial_mean1400_099)
-        print("Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1400)
-        print("Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1400_099)
+        dpa_1300_cf_raw_pt = torch.from_numpy(dpa_1300_cf_raw.values)
+        qu_gc_diff1300_cf, mae_spatial_mean1300_cf = c_quantiles(eth_cf_1300_test_reduced, dpa_1300_cf_raw_pt, quantiles)
+        qu_gc_diff1300_099_cf, mae_spatial_mean1300_099_cf = c_quantiles(eth_cf_1300_test_reduced, dpa_1300_cf_raw_pt, torch.tensor(0.99))
+        test_all_quantiles_cf.append(mae_spatial_mean1300_cf)
+        test_099_quantile_cf.append(mae_spatial_mean1300_099_cf)
+        print("counterfactual Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1300_cf)
+        print("counterfactual Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1300_099_cf)
     
+        if args.no_test_members > 1:
+            # 1400
+            dpa_1400_cf_raw_pt = torch.from_numpy(dpa_1400_cf_raw.values)
+            qu_gc_diff1400_cf, mae_spatial_mean1400_cf = c_quantiles(eth_cf_1400_test_reduced, dpa_1400_cf_raw_pt, quantiles)
+            qu_gc_diff1400_099_cf, mae_spatial_mean1400_099_cf = c_quantiles(eth_cf_1400_test_reduced, dpa_1400_cf_raw_pt, torch.tensor(0.99))
+            test_all_quantiles_cf.append(mae_spatial_mean1400_cf)
+            test_099_quantile_cf.append(mae_spatial_mean1400_099_cf)
+            print("counterfactual Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1400_cf)
+            print("counterfactual Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1400_099_cf)
+        
+        
+            # 1500
+            #dpa_1500_cf_raw_pt = torch.from_numpy(dpa_1500_cf_raw.values)
+            #qu_gc_diff1500_cf, mae_spatial_mean1500_cf = c_quantiles(eth_cf_1500_test_reduced, dpa_1500_cf_raw_pt, quantiles)
+            #qu_gc_diff1500_099_cf, mae_spatial_mean1500_099_cf = c_quantiles(eth_cf_1500_test_reduced, dpa_1500_cf_raw_pt, torch.tensor(0.99))
+            #test_all_quantiles_cf.append(mae_spatial_mean1500_cf)
+            #test_099_quantile_cf.append(mae_spatial_mean1500_099_cf)
+            #print("counterfactual Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1500_cf)
+            #print("counterfactual Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1500_099_cf)
     
-        # 1500
-        dpa_1500_fact_raw_pt = torch.from_numpy(dpa_1500_fact_raw.values)
-        qu_gc_diff1500, mae_spatial_mean1500 = c_quantiles(eth_fact_1500_test_reduced, dpa_1500_fact_raw_pt, quantiles)
-        qu_gc_diff1500_099, mae_spatial_mean1500_099 = c_quantiles(eth_fact_1500_test_reduced, dpa_1500_fact_raw_pt, torch.tensor(0.99))
-        test_all_quantiles.append(mae_spatial_mean1500)
-        test_099_quantile.append(mae_spatial_mean1500_099)
-        print("Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1500)
-        print("Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1500_099)
-
-    # compute mean values
-    quantile_099_mean = np.mean(test_099_quantile)
-    all_quantiles_mean = np.mean(test_all_quantiles)
-    print("099 quantile mean MAE across test members:", quantile_099_mean)
-    print("all quantiles mean MAE across test members:", all_quantiles_mean)
-
-    log_print(log_file, f"all quantiles mean MAE across test members (ETH 1300,1400,1500): {all_quantiles_mean}")
-    log_print(log_file, f"099 quantile mean MAE across test members (ETH 1300,1400,1500): {quantile_099_mean}")
-
-    ######################
-    ### Counterfactual ###
-    ######################
+        # compute mean values
+        quantile_099_mean_cf = np.mean(test_099_quantile_cf)
+        all_quantiles_mean_cf = np.mean(test_all_quantiles_cf)
+        print("counterfactual 099 quantile mean MAE across test members:", quantile_099_mean_cf)
+        print("counterfactual all quantiles mean MAE across test members:", all_quantiles_mean_cf)
     
-    test_all_quantiles_cf = []
-    test_099_quantile_cf = []
-    # 1300
-    
-    dpa_1300_cf_raw_pt = torch.from_numpy(dpa_1300_cf_raw.values)
-    qu_gc_diff1300_cf, mae_spatial_mean1300_cf = c_quantiles(eth_cf_1300_test_reduced, dpa_1300_cf_raw_pt, quantiles)
-    qu_gc_diff1300_099_cf, mae_spatial_mean1300_099_cf = c_quantiles(eth_cf_1300_test_reduced, dpa_1300_cf_raw_pt, torch.tensor(0.99))
-    test_all_quantiles_cf.append(mae_spatial_mean1300_cf)
-    test_099_quantile_cf.append(mae_spatial_mean1300_099_cf)
-    print("counterfactual Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1300_cf)
-    print("counterfactual Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1300_099_cf)
-
-    if args.no_test_members > 1:
-        # 1400
-        dpa_1400_cf_raw_pt = torch.from_numpy(dpa_1400_cf_raw.values)
-        qu_gc_diff1400_cf, mae_spatial_mean1400_cf = c_quantiles(eth_cf_1400_test_reduced, dpa_1400_cf_raw_pt, quantiles)
-        qu_gc_diff1400_099_cf, mae_spatial_mean1400_099_cf = c_quantiles(eth_cf_1400_test_reduced, dpa_1400_cf_raw_pt, torch.tensor(0.99))
-        test_all_quantiles_cf.append(mae_spatial_mean1400_cf)
-        test_099_quantile_cf.append(mae_spatial_mean1400_099_cf)
-        print("counterfactual Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1400_cf)
-        print("counterfactual Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1400_099_cf)
-    
-    
-        # 1500
-        #dpa_1500_cf_raw_pt = torch.from_numpy(dpa_1500_cf_raw.values)
-        #qu_gc_diff1500_cf, mae_spatial_mean1500_cf = c_quantiles(eth_cf_1500_test_reduced, dpa_1500_cf_raw_pt, quantiles)
-        #qu_gc_diff1500_099_cf, mae_spatial_mean1500_099_cf = c_quantiles(eth_cf_1500_test_reduced, dpa_1500_cf_raw_pt, torch.tensor(0.99))
-        #test_all_quantiles_cf.append(mae_spatial_mean1500_cf)
-        #test_099_quantile_cf.append(mae_spatial_mean1500_099_cf)
-        #print("counterfactual Spatial mean of MAE per grid-cell in 5% quantiles:", mae_spatial_mean1500_cf)
-        #print("counterfactual Spatial mean of MAE per grid-cell in 99% quantiles:", mae_spatial_mean1500_099_cf)
-
-    # compute mean values
-    quantile_099_mean_cf = np.mean(test_099_quantile_cf)
-    all_quantiles_mean_cf = np.mean(test_all_quantiles_cf)
-    print("counterfactual 099 quantile mean MAE across test members:", quantile_099_mean_cf)
-    print("counterfactual all quantiles mean MAE across test members:", all_quantiles_mean_cf)
-
-    log_print(log_file, f"counterfactual, all quantiles mean MAE across test members (ETH 1300,1400,1500): {all_quantiles_mean_cf}")
-    log_print(log_file, f"counterfactual, 099 quantile mean MAE across test members (ETH 1300,1400,1500): {quantile_099_mean_cf}")
+        log_print(log_file, f"counterfactual, all quantiles mean MAE across test members (ETH 1300,1400,1500): {all_quantiles_mean_cf}")
+        log_print(log_file, f"counterfactual, 099 quantile mean MAE across test members (ETH 1300,1400,1500): {quantile_099_mean_cf}")
 
 
     #############################
     ### Conditional coverages ###
     #############################
+
+    ### function ###
+    def compare_distrs(test, dpa, dpa_ensemble_spat_mean, climate=None):
+        x1 = dpa 
+        x2 = test # assign loaded numpy array here
+        
+        # -------------------------
+        # 1) Histogram comparison
+        # -------------------------
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Use common bins to avoid misalignment
+        all_data = np.concatenate([x1, x2])
+        bins = np.histogram_bin_edges(all_data, bins=40)
+        
+        ax.hist(x1, bins=bins, density=True, alpha=0.5, label=f"{climate} DAE ensemble")
+        ax.hist(x2, bins=bins, density=True, alpha=0.5, label=f"{climate} CESM2 Test Data")
+        
+        mean1, std1 = np.mean(x1), np.std(x1)
+        mean2, std2 = np.mean(x2), np.std(x2)
+        
+        # Mean lines
+        ax.axvline(mean1, linestyle="--", linewidth=2, color="tab:blue")
+        ax.axvline(mean2, linestyle="--", linewidth=2, color="tab:orange")
+        
+        # ±2σ lines
+        ax.axvline(mean1 - 2*std1, linestyle=":", linewidth=2, color="tab:blue")
+        ax.axvline(mean1 + 2*std1, linestyle=":", linewidth=2, color="tab:blue")
+        ax.axvline(mean2 - 2*std2, linestyle=":", linewidth=2, color="tab:orange")
+        ax.axvline(mean2 + 2*std2, linestyle=":", linewidth=2, color="tab:orange")
+        
+        ax.set_xlabel("Temperature anomaly")
+        ax.set_ylabel("Density")
+        
+        # Legend + custom entry
+        handles, labels = ax.get_legend_handles_labels()
+        handles.append(Patch(facecolor="none", edgecolor="none"))  # invisible handle
+        labels.append(f"mean bias = {abs(mean2 - mean1):.4g}")
+        ax.legend(handles, labels)
+        
+        ax.grid(alpha=0.3)
+        
+        fig.tight_layout()
+        fig.savefig(f"{save_path_eth}/compare_distrs_{climate}_test.png", dpi=200)
+        plt.close(fig)  # prevents mixing with later plots
+        
+        
+        # -------------------------
+        # 2) Q-Q plot
+        # -------------------------
+        quantiles = np.arange(0.05, 1.0, 0.05)
+        quantiles_dpa = np.quantile(dpa, quantiles)
+        quantiles_test = np.quantile(test, quantiles)
+        
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.scatter(quantiles_test, quantiles_dpa, marker="x")
+        
+        # 1:1 line based on data range (better than fixed -5..5)
+        lo = min(quantiles_test.min(), quantiles_dpa.min())
+        hi = max(quantiles_test.max(), quantiles_dpa.max())
+        ax.plot([lo, hi], [lo, hi], linestyle="--", color="black")
+        
+        ax.set_xlabel("True quantiles")
+        ax.set_ylabel("DAE quantiles")
+        ax.grid(alpha=0.3)
+        
+        fig.tight_layout()
+        fig.savefig(f"{save_path_eth}/Q-Q_{climate}_test.png", dpi=200)
+        plt.close(fig)
+        
+        mae_qq = np.mean(np.abs(quantiles_test - quantiles_dpa))
+        log_print(log_file, f"Q-Q {climate} MAE of domain average: {mae_qq}")
+        
+        
+         # -------------------------
+        # 3) Coverage-Quantile (C-Q) plot
+        # -------------------------
+        dpa_ensemble_spat_mean_quantiles = np.quantile(dpa_ensemble_spat_mean, quantiles, axis=0)
+        cover_dpa = evaluation.compute_coverage_per_quantile(
+            test, dpa_ensemble_spat_mean_quantiles.T, quantiles
+        )
+        
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.scatter(quantiles, cover_dpa, marker="x")
+        
+        # 1:1 line on [0,1]
+        ax.plot([0, 1], [0, 1], linestyle="--", color="black")
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set_xlabel("Nominal quantiles")
+        ax.set_ylabel("Fraction of points in quantile")
+        ax.grid(alpha=0.3)
+        
+        fig.tight_layout()
+        fig.savefig(f"{save_path_eth}/C-Q_{climate}_test.png", dpi=200)
+        plt.close(fig)
+        
+        mae_cq = np.mean(np.abs(quantiles - cover_dpa))
+        log_print(log_file, f"C-Q MAE {climate} of domain average: {mae_cq}")
+        return 
+    
+    
+    # prepare data
+    
+    
+    #x_te_reduced_eth_fact_mean = x_te_reduced_eth_fact.mean(dim=1)
+    #test = x_te_reduced_eth_fact_mean.detach().cpu().numpy()
+
+    # Factual ETH test data
+    x_eth_fact_reduced_mean = x_te_reduced_eth_fact.mean(dim=1)
+    x_eth_fact_reduced_mean_numpy = x_eth_fact_reduced_mean.detach().cpu().numpy()
+
+    # Counterfactual ETH test data
+    x_eth_cf_reduced_mean = x_te_reduced_eth_cf.mean(dim=1)
+    x_eth_cf_reduced_mean_numpy = x_eth_cf_reduced_mean.detach().cpu().numpy()
+    
+    
+    
+    # DAE ensemble spat means
+    dpa_eth_fact_ensemble_spat_mean = dpa_ensemble_fact_raw.TREFHT.mean(dim="lat_x_lon")
+    dpa_eth_cf_ensemble_spat_mean = dpa_ensemble_raw_cf.TREFHT.mean(dim="lat_x_lon")
+
+    # DAE ensemble mean spat mean
+    dpa_eth_fact_ensemble_mean_spat_mean = dpa_eth_fact_ensemble_spat_mean.mean(dim="ensemble_member")
+    dpa_eth_cf_ensemble_mean_spat_mean = dpa_eth_cf_ensemble_spat_mean.mean(dim="ensemble_member")
+    
+ 
+    # Factual
+    print("ERA5 test shapes:", x_eth_fact_reduced_mean_numpy.shape, x_eth_cf_reduced_mean_numpy.shape)
+    test_sets = [x_eth_fact_reduced_mean_numpy, x_eth_cf_reduced_mean_numpy[:2*4769]]
+    dpa_spat_means = [dpa_eth_fact_ensemble_spat_mean, dpa_eth_cf_ensemble_spat_mean[:,:2*4769]]
+    dae_ensemble_means_spat_means = [dpa_eth_fact_ensemble_mean_spat_mean, dpa_eth_cf_ensemble_mean_spat_mean[:2*4769]]
+
+    climates=["Factual", "Counterfactual"]
+    
+    for test_val, dae_ens_mean_spat_mean, dae_ensemble_spat_mean, current_climate in zip(test_sets, dae_ensemble_means_spat_means, dpa_spat_means, climates):
+        compare_distrs(test_val, dae_ens_mean_spat_mean.values, dae_ensemble_spat_mean.values, climate=current_climate)
+
     
     # y_test_np: test truth grid cell time data
     # quantile_predictions_dpa: shape: (14307, 100), np.quantile(trefht_dpa_trans_ger_mean.values.T, np.linspace(0.05, 0.95, 19), axis=1).T
@@ -444,55 +583,89 @@ def main():
     # dpa_1300_fact_raw: shape (100, 4769, 648)
     # trefht_dpa_trans_ger_mean.values.T.shape: (14307, 100)
     
+    
     quantiles_cq = torch.linspace(0.05, 0.95, 19)
     quantiles_cq_np = np.linspace(0.05, 0.95, 19)
 
 
     ### Factual ###
-    mae_means = []
-    mae099_means = []
-
-    through = zip([eth_fact_1300_test_reduced], [dpa_1300_fact_raw])
-    if args.no_test_members > 1:
-        through = zip([eth_fact_1300_test_reduced, eth_fact_1400_test_reduced, eth_fact_1500_test_reduced], [dpa_1300_fact_raw, dpa_1400_fact_raw, dpa_1500_fact_raw])
-    for y_test_np, dpa_xxxx_fact_raw in through:
-        mae_list = []
-        mae099_list = []
-        for i in range(648):
-            print(i)
-            y_test_np #= eth_fact_1300_test_reduced[:,i]
-            quantile_predictions_dpa = np.quantile(dpa_xxxx_fact_raw[:,:,i].T, np.linspace(0.05, 0.95, 19), axis=1).T
+    if True:
+        mae_means = []
+        mae099_means = []
+        coverages_all_membs = np.zeros((args.no_test_members,19))
+    
+        through = zip([eth_fact_1300_test_reduced], [dpa_1300_fact_raw])
+        if args.no_test_members > 1:
+            through = zip([eth_fact_1300_test_reduced, eth_fact_1400_test_reduced, eth_fact_1500_test_reduced], [dpa_1300_fact_raw, dpa_1400_fact_raw, dpa_1500_fact_raw])
+        memb = 0
+        for y_test_np, dpa_xxxx_fact_raw in through:
+            mae_list = []
+            mae099_list = []
+            member_gc_coverages = np.zeros((648,19))
+            for i in range(648):
+                print(i)
+                y_test_np #= eth_fact_1300_test_reduced[:,i]
+                quantile_predictions_dpa = np.quantile(dpa_xxxx_fact_raw[:,:,i].T, np.linspace(0.05, 0.95, 19), axis=1).T
+                
+                
             
-            
+                print("y_test_np.shape", y_test_np.shape)
+                print("quantile_predictions_dpa.shape", quantile_predictions_dpa.shape)
+                cover_dpa = evaluation.compute_coverage_per_quantile(y_test_np[:,i], quantile_predictions_dpa, quantiles_cq)
+                # compute MAE between cover_dpa and quantiles_cq
+    
+                # save cq per grid-cell
+                member_gc_coverages[i,:] = cover_dpa
         
-            print("y_test_np.shape", y_test_np.shape)
-            print("quantile_predictions_dpa.shape", quantile_predictions_dpa.shape)
-            cover_dpa = evaluation.compute_coverage_per_quantile(y_test_np[:,i], quantile_predictions_dpa, quantiles_cq)
-            # compute MAE between cover_dpa and quantiles_cq
+                mae = np.mean(np.abs(quantiles_cq_np - cover_dpa))
+                mae_list.append(mae)
+                mae099 = np.abs(quantiles_cq_np[-1] - cover_dpa[-1])
+                mae099_list.append(mae099)
+            spat_mean_coverage = np.mean(member_gc_coverages, axis=0) # compute mean coverage over all grid-cells
+            coverages_all_membs[memb, :] = spat_mean_coverage
+            memb += 1
+            spat_mean_mae = np.mean(mae_list) 
+            spat_mean_099 = np.mean(mae099_list)
+            mae_means.append(spat_mean_mae)
+            mae099_means.append(spat_mean_099)
+        
+        # compute mean coverage across members from: coverages_all_membs
+        # mean of: mean of spatial covergae per grid-cell, per member
+        mean_coverage_membs_gcs = np.mean(coverages_all_membs, axis = 0)
+        print("mean_coverage_membs_gcs shape:", mean_coverage_membs_gcs.shape)
+        mae_membs_gcs = np.mean(np.abs(quantiles_cq_np - mean_coverage_membs_gcs))
     
+        log_print(log_file, f"factual mean calibration CQ MAE: {mae_membs_gcs}")
+        log_print(log_file, f"coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): {np.mean(mae_means)}")
+        log_print(log_file, f"095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): {np.mean(mae099_means)}")
     
-            mae = np.mean(np.abs(quantiles_cq_np - cover_dpa))
-            mae_list.append(mae)
-            mae099 = np.abs(quantiles_cq_np[-1] - cover_dpa[-1])
-            mae099_list.append(mae099)
-        spat_mean_mae = np.mean(mae_list) 
-        spat_mean_099 = np.mean(mae099_list)
-        mae_means.append(spat_mean_mae)
-        mae099_means.append(spat_mean_099)
+        
+        # plot mean of mean
+        x = np.linspace(-5, 5, 100)
+        plt.scatter(quantiles_cq_np, mean_coverage_membs_gcs, marker='x', label="calibration")
+        plt.plot(x, x, color="black", linestyle="--")
+        plt.xlim(0,1)
+        plt.ylim(0,1)
+        plt.ylabel("Fraction of points in quantile")
+        plt.xlabel("Nominal quantiles")
+        plt.legend()
+        plt.savefig(f"{save_path_eth}/mean_calibration_factual.png")
     
-    log_print(log_file, f"coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): {np.mean(mae_means)}")
-    log_print(log_file, f"095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): {np.mean(mae099_means)}")
 
+    
     ### Counterfactual ###
     mae_means_cf = []
     mae099_means_cf = []
+    coverages_all_membs_cf = np.zeros((args.no_test_members,19))
     
     through_cf = zip([eth_cf_1300_test_reduced], [dpa_1300_cf_raw])
     if args.no_test_members > 1:
         through_cf = zip([eth_cf_1300_test_reduced, eth_cf_1400_test_reduced, eth_cf_1500_test_reduced], [dpa_1300_cf_raw, dpa_1400_cf_raw, dpa_1500_cf_raw])
+    memb = 0
     for y_test_np, dpa_xxxx_cf_raw in through_cf:
         mae_list = []
         mae099_list = []
+        member_gc_coverages_cf = np.zeros((648,19))
         for i in range(648):
             print(i)
             y_test_np #= eth_fact_1300_test_reduced[:,i]
@@ -505,21 +678,44 @@ def main():
             print("quantile_predictions_dpa.shape", quantile_predictions_dpa.shape)
             cover_dpa = evaluation.compute_coverage_per_quantile(y_test_np[:,i], quantile_predictions_dpa, quantiles_cq)
             # compute MAE between cover_dpa and quantiles_cq
-    
+
+            # save cq per grid-cell
+            member_gc_coverages_cf[i,:] = cover_dpa
     
             mae = np.mean(np.abs(quantiles_cq_np - cover_dpa))
             mae_list.append(mae)
             mae099 = np.abs(quantiles_cq_np[-1] - cover_dpa[-1])
             mae099_list.append(mae099)
+        
+        spat_mean_coverage_cf = np.mean(member_gc_coverages_cf, axis=0) # compute mean coverage over all grid-cells
+        coverages_all_membs_cf[memb, :] = spat_mean_coverage_cf
+        memb += 1
         spat_mean_mae = np.mean(mae_list) 
         spat_mean_099 = np.mean(mae099_list)
         mae_means_cf.append(spat_mean_mae)
         mae099_means_cf.append(spat_mean_099)
-    
+
+    # compute mean coverage across members from: coverages_all_membs
+    # mean of: mean of spatial covergae per grid-cell, per member
+    mean_coverage_membs_gcs_cf = np.mean(coverages_all_membs_cf, axis = 0)
+    print("mean_coverage_membs_gcs shape:", mean_coverage_membs_gcs_cf.shape)
+    mae_membs_gcs_cf = np.mean(np.abs(quantiles_cq_np - mean_coverage_membs_gcs_cf))
+        
+    log_print(log_file, f"counterfactual mean calibration CQ MAE: {mae_membs_gcs_cf}")
     log_print(log_file, f"counterfactual coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): {np.mean(mae_means_cf)}")
     log_print(log_file, f"counterfactual 095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): {np.mean(mae099_means_cf)}")
-    
 
+    # plot mean of mean
+    x = np.linspace(-5, 5, 100)
+    plt.scatter(quantiles_cq_np, mean_coverage_membs_gcs_cf, marker='x', label="calibration")
+    plt.plot(x, x, color="black", linestyle="--")
+    plt.xlim(0,1)
+    plt.ylim(0,1)
+    plt.ylabel("Fraction of points in quantile")
+    plt.xlabel("Nominal quantiles")
+    plt.legend()
+    plt.savefig(f"{save_path_eth}/mean_calibration_counterfactual.png")
+    #sys.exit()
     ########################
     ### Autocorrelations ###
     ########################

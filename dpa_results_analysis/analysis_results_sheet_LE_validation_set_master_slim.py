@@ -556,7 +556,7 @@ def main():
                 # cover dpa per grid-cell
                 cover_dpa = evaluation.compute_coverage_per_quantile(y_test_np[:,i], quantile_predictions_dpa, quantiles_cq)
 
-                # 
+                # save cq per grid-cell
                 member_gc_coverages[i,:] = cover_dpa
                 
                 # compute MAE between cover_dpa and quantiles_cq
