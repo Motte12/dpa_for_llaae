@@ -109,7 +109,7 @@ def main():
         settings = json.load(file)
     
     # create save directory
-    save_dir = f"{settings['output_dir']}_device{device}{latent_dim}_{num_layers}_{hidden_dim}_{noise_dim_dec}_{in_dim_lm}_{noise_dim_lm}_{num_layers_lm}_{hidden_dim_lm}_encoderis{encoder}_lambda{lam}_alpha{args.alpha}_bs{batch_size}_bnis{bn}_lr{lr}/"
+    save_dir = f"{settings['output_dir']}_device{device}{latent_dim}_{num_layers}_{hidden_dim}_{noise_dim_dec}_{in_dim_lm}_{noise_dim_lm}_{num_layers_lm}_{hidden_dim_lm}_encoderis{encoder}_lambda{lam}_alpha{args.alpha}_bs{batch_size}_bnis{bn}_lr{lr}_pene{args.include_pen_e}/"
     
     # create directory
     os.makedirs(save_dir, exist_ok=True)

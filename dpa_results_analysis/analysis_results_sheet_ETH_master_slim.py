@@ -662,7 +662,6 @@ def main():
         e_loss_test_mean = np.mean([e_loss_array_1300[0,:].mean(), e_loss_array_1400[0,:].mean(), e_loss_array_1500[0,:].mean()])
         s1_loss_test_mean = np.mean([e_loss_array_1300[1,:].mean(), e_loss_array_1400[1,:].mean(), e_loss_array_1500[1,:].mean()])
         s2_loss_test_mean = np.mean([e_loss_array_1300[2,:].mean(), e_loss_array_1400[2,:].mean(), e_loss_array_1500[2,:].mean()])
-    
     log_print(log_file, f"Factual Energy-Score spatial mean across test members: {e_loss_test_mean}")
     log_print(log_file, f"Factual S1-Score spatial mean across test members: {s1_loss_test_mean}")
     log_print(log_file, f"Factual S2-Score spatial mean across test members: {s2_loss_test_mean}")
@@ -774,9 +773,9 @@ def main():
     s2_loss_test_mean_cf = np.mean([e_loss_array_1300_cf[2,:].mean()])
     
     if args.no_test_members > 1:
-        e_loss_test_mean_cf = np.mean([e_loss_array_1300_cf[0,:].mean(), e_loss_array_1400_cf[0,:].mean(), e_loss_array_1500_cf[0,:].mean()])
-        s1_loss_test_mean_cf = np.mean([e_loss_array_1300_cf[1,:].mean(), e_loss_array_1400_cf[1,:].mean(), e_loss_array_1500_cf[1,:].mean()])
-        s2_loss_test_mean_cf = np.mean([e_loss_array_1300_cf[2,:].mean(), e_loss_array_1400_cf[2,:].mean(), e_loss_array_1500_cf[2,:].mean()])
+        e_loss_test_mean_cf = np.mean([e_loss_array_1300_cf[0,:].mean(), e_loss_array_1400_cf[0,:].mean()]) #, e_loss_array_1500_cf[0,:].mean()])
+        s1_loss_test_mean_cf = np.mean([e_loss_array_1300_cf[1,:].mean(), e_loss_array_1400_cf[1,:].mean()]) #, e_loss_array_1500_cf[1,:].mean()])
+        s2_loss_test_mean_cf = np.mean([e_loss_array_1300_cf[2,:].mean(), e_loss_array_1400_cf[2,:].mean()]) #, e_loss_array_1500_cf[2,:].mean()])
     
     log_print(log_file, f"Counterfactual Energy-Score spatial mean across test members: {e_loss_test_mean_cf}")
     log_print(log_file, f"Counterfactual S1-Score spatial mean across test members: {s1_loss_test_mean_cf}")
@@ -954,7 +953,7 @@ def main():
 
     r_spat_mean_all_test_members_cf = r_spat_mean_1300_cf
     if args.no_test_members > 1:
-        r_spat_mean_all_test_members_cf = (r_spat_mean_1300_cf + r_spat_mean_1400_cf + r_spat_mean_1500_cf) / 3
+        r_spat_mean_all_test_members_cf = (r_spat_mean_1300_cf + r_spat_mean_1400_cf) / 2 #+ r_spat_mean_1500_cf) / 3
     log_print(log_file, f"counterfactualspatial mean correlation mean across test set (ETH 1300,1400,1500): {r_spat_mean_all_test_members_cf}")
     ###
 

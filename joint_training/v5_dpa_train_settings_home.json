@@ -1,0 +1,8 @@
+{
+"output_dir": "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/v5_data_model7(bnTrue)/tuning_models/",
+"dataset_trefht": "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/v5_starting16012026/europe_10percent_masked_stacked_TREFHT_JJA.nc",
+"dataset_z500": "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/v5_starting16012026/pcsts_and_fGMT_not_standardized_LE.nc",
+"dataset_trefht_eth_transient": "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/v5_starting16012026/ETH_europe_10percent_masked_stacked_TREFHT_JJA.nc",
+"dataset_trefht_eth_nudged_shifted": "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/v5_starting16012026/ETH_europe_10percent_masked_stacked_TREFHT_nudged_JJA.nc",
+"dataset_z500_eth_test": "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/v5_starting16012026/pcsts_and_fGMT_not_standardized_ETH.nc"
+}

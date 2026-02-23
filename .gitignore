@@ -1,5 +1,21 @@
 # Initially taken from Github's Python gitignore file
 
+
+# tuning files
+*.err
+*.out
+*.status
+
+# pytorch
+*.pt
+
+#
+joint_training/dpa_tuning7_starting21022026_v5_data/* 
+joint_training/v5_data_model6(bnFalse)/* 
+joint_training/v5_data_model7(bnTrue)/* 
+joint_training/v6_data_model5/*
+
+
 # Result files
 *.pdf
 *.nc

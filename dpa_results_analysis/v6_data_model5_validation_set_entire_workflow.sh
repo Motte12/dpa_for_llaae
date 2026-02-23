@@ -9,7 +9,7 @@ echo "DPA Environment activated"
 # submit the two slurm job scripts
 
 # === Shared configuration ===
-NO_EPOCHS=50
+NO_EPOCHS=100
 ENS_MEMBERS=100
 MODEL_PATH="/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/v6_data_model5/"
 MODEL="_devicecpu100_6_100_5_1001_20_2_50_encoderislearnable_lambda0.5_alpha1.5_bs128_bnisFalse_lr0.0001"
@@ -101,22 +101,22 @@ srun -N1 -n1 python3 ETH_test_create_dpa_ensemble_with_ETH_test_set.py \
     --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}" &
 
 # LE train data set ensemble
-#srun -N1 -n1 python3 LE_train_create_dpa_ensemble_with_LE_train_set.py \
-#    --ens_members $ENS_MEMBERS \
-#    --save_path_ensemble_single $ensemble_save_path \
-#    --model_path "$MODEL_PATH${MODEL}" \
-#    --encoder_model $ENCODER \
-#    --decoder_model $DECODER \
-#    --latent_map_model $LATENT_MAP \
-#    --no_epochs $NO_EPOCHS \
-#    --standardize_predictors 1 \
-#    --no_bn \
-#    --autoencode_only 1 \
-#    --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}_dpa_train_settings.json" &
+srun -N1 -n1 python3 LE_train_create_dpa_ensemble_with_LE_train_set.py \
+    --ens_members $ENS_MEMBERS \
+    --save_path_ensemble_single $ensemble_save_path \
+    --model_path "$MODEL_PATH${MODEL}" \
+    --encoder_model $ENCODER \
+    --decoder_model $DECODER \
+    --latent_map_model $LATENT_MAP \
+    --no_epochs $NO_EPOCHS \
+    --standardize_predictors 1 \
+    --no_bn \
+    --autoencode_only 1 \
+    --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}_dpa_train_settings.json" &
 
 #echo "Exit ..."
-exit
-#wait
+#exit
+wait
 echo "Ensemble created, now analyzing"
 
 
@@ -150,19 +150,19 @@ for i in "${!period_start_years[@]}"; do
         --include_train_analysis 0 &
 
     # eth test set
-    #srun python3  \
-    #    --period_start $start \
-    #    --period_end $end \
-    #    --ensemble_path $ensemble_save_path_eth \
-    #    --no_epochs $NO_EPOCHS \
-    #    --ens_members $ENS_MEMBERS \
-    #    --calculate_e_loss_per_ti 0 \
-    #    --StoNet_ensemble 0 \
-    #    --save_path_eth "ETH_analysis_results/final_analysis_eth_test_set/model_${MODEL}/trained_for_${NO_EPOCHS}_epochs_${results_save_comment}" \
-    #    --save_path_le "ETH_analysis_results/final_analysis_train_LE/model_${MODEL}/model_trained_for_${NO_EPOCHS}_epochs_${results_save_comment}" \
-    #    --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}" \
-    #    --no_test_members 3 \
-    #    --include_train_analysis 0 &
+    srun python3 analysis_results_sheet_ETH_master_slim.py \
+        --period_start $start \
+        --period_end $end \
+        --ensemble_path $ensemble_save_path_eth \
+        --no_epochs $NO_EPOCHS \
+        --ens_members $ENS_MEMBERS \
+        --calculate_e_loss_per_ti 0 \
+        --StoNet_ensemble 0 \
+        --save_path_eth "ETH_analysis_results/final_analysis_eth_test_set/model_${MODEL}/trained_for_${NO_EPOCHS}_epochs_${results_save_comment}" \
+        --save_path_le "ETH_analysis_results/final_analysis_train_LE/model_${MODEL}/model_trained_for_${NO_EPOCHS}_epochs_${results_save_comment}" \
+        --settings_file_path "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/joint_training/${data_version}" \
+        --no_test_members 3 \
+        --include_train_analysis 0 &
 
 done
 
