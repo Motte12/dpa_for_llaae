@@ -1,0 +1,41 @@
+{
+	"paths": { 
+	  "data": "/home/sc.uni-leipzig.de/fl53wumy/llaae_new/DistributionalPrincipalAutoencoder/v5_starting16012026/",
+	  "dataset_trefht": "europe_10percent_masked_stacked_TREFHT_JJA.nc",
+	  "dataset_z500": "pcsts_and_fGMT_not_standardized_LE.nc",
+	  "dataset_trefht_eth_transient": "ETH_europe_10percent_masked_stacked_TREFHT_JJA.nc",
+	  "dataset_trefht_eth_nudged_shifted": "ETH_europe_10percent_masked_stacked_TREFHT_nudged_JJA.nc",
+	  "dataset_z500_eth_test": "pcsts_and_fGMT_not_standardized_ETH.nc",
+	  "output_dir": "/work2/fl53wumy-llaae_ws_new/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/module_test"
+	},
+
+	"model_parameters": {
+	  "in_dim": 648,
+	  "ld": 100,
+	  "enc": "learnable",
+	  "hdn": 100,
+	  "nln": 6,
+	  "ndd": 100,
+	  "hdl": 50,
+	  "ndl": 20,
+	  "lambd": 0.5,
+	  "bs": 128,
+	  "epochs": 100,
+	  "learn_rate": 0.0001,
+	  "alpha": 1.5,
+	  "batch_norm": 0,
+	  "resblock": 1,
+	  "in_dim_lm": 1001,
+	  "num_layer_lm": 2
+  	},
+      "training_parameters": {
+	  "lr": 0.0001,
+	  "batch_size": 128,
+	  "epochs": 100,
+	  "batch_norm": 0,
+	  "lam": 0.5,
+	  "alpha": 1.5,
+	  "include_pen_e": 0
+      }	      
+
+}

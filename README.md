@@ -1,88 +1,56 @@
-## Directories
-joint_training --> contains joint training analysis and results
+This repository contains code to reproduce the results for the extended abstract *Towards a distributional autoencoder for climate counterfactuals* submitted to the Climate Informatics 2026 conference.
 
-joint_training/tuning/ --> contains tuning results of the joint model
+## Repository Structure
 
-dpa_results_analysis/ --> structured/automated analysis of results
+Towards-a-distributional-autoencoder-for-climate-counterfactuals/
+├── README.md
+├── LICENSE             
+├── src/
+│   ├── modeling/                   -> Core modeling code
+│   │   ├── __init__.py
+│   │   ├── create_ensemble.sh      -> bash script to properly start create_test_ensemble.py
+|   |   ├── create_test_ensemble.py -> python script to create an ensemble from a trained model
+│   │   ├── pca_encoder.py          -> contains a pca encoder
+│   │   ├── start_joint_training.sh -> start python script for training DAE
+|   |   └── train_joint_dae.py      -> script to train model
+│   ├── analysis/                   -> Code for analysis of model output
+│   │   ├── __init__.py
+│   │   └── extended_abstract_figure.ipynb -> notebook to create figure in extended abstract
+│   └── utils/                      -> Helper functions shared between modeling and analysis
+│       ├── __init__.py
+│       ├── utils.py
+│       ├── dpa_ensemble.py
+│       └── evaluation.py
+├── environment.yml                 -> Conda environment file 
+└──_devicecuda100_6_100_100_1001_20_2_50_encoderislearnable_lambda0.5_alpha1.5_bs128_bnisFalse_lr0.0001_pene0 -> pre-trained model
 
-## code
-
-- dpa_ensemble.py -> load trained DPA model and create the DPA ensemble (Factual and Counterfactual)
-- evaluation.py -> contains functions to evaluate DPA ensemble
-- utils.py -> contains all sort of helper functions
-
-
-## Tuning
-- tuning analysis in "llaae_new/DistributionalPrincipalAutoencoder/joint_training/tuning/analyse_tuning.ipynb"
-- started tuning with start_tuning_slurm.sh
-	+ loops through hyperparameter combinations
-- some tuning jobs weren't executed correctly
-	+ their corresponding slurm IDs are in timedout_jobs.txt
-	+ these jobs were redone with: repeat_timed_out_jobs_start_tuning_slurm.sh
-- tuning results folder:
-	+ tuning1: in "/work/fl53wumy-llaae_data_new/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_tuning_output"
-	+ repeated, initially missed: "/work/fl53wumy-llaae_data_new/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_tuning_output_missed_jobs"
-
-- tuning result/best performing model is in "/work/fl53wumy-llaae_data_new/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_tuning_output/_50_6_50_5_1001_20_2_50_encoderislearnable_lambda0.5" 
-	+ retrained model with same parameters is in /work/fl53wumy-llaae_data_new/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/
-
-## Folders
-/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1 --> contains current model along with predicted DPA ensembles
-/work/fl53wumy-llaae_data_new/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1_noise1 --> contains same model (newly trained) as dpa_model3_tuning1 but with 100 noise dimensions instead of 20
-
-## joint_training/analysing_dpa_results
-
-## Data
-- output data in: "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/" 
-- input data in: "/work/fl53wumy-llaae_data_new_22092025/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/"
-    + v1_until16102025/ -> first version of training/test data until 16.10.2025, includes forced response as fGMT predictor
-    + v2_starting16102025 -> 2nd version of data, now a 90/100 training/validation split of Large Ensemble (until 21.10.2025 only used for autoencoding of temperature data), and data contains GMT of each individual run as predictor, not the (smooth) forced response, "dataset_z500" already contains GMT predictors in 0th (21.11.2025: rather in column 1000 I think) column
-    + v3_starting21112025 -> 3rd version of data, as v2 but with forced response as predictor
-       + **standardized forced response** as predictor at mode = 1000 (starting at index 0), need to standardize **0s** when producing counterfactuals (no scaling but shifting by mean value **mean=0.99567246** , standard deviation **std=1.347358**(reproduce with "barat:/home/floer/Climate_Counterfactuals/climat-counterfactuals/LLAAE/data_preprocessing/restructured_modularized/preprocessing_automated/v3_data/predictors/LE/concat_Z500_and_GMT.py"))
-       + fGMT is at predictor mode 1000 (starting from 0)
-**probably for v3 data I projected ETH Z500 onto EOFs calculated from Z500 and not onto Z500 EOFs of LE**
-    + v4_starting04122025
-       + do not standardize anything, only standardize in training/evaluation scripts for separate train/validation/test standardization
-
-## Models
-- baseline model ("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/baseline_quantile_regression")
-    + stochastic gradient descent model trained on
-    + (v1_data): "v1_data_quantile_regression_ger_gradient_descent_2025-11-25_15-58"
-    + v3_data: "v3_data_quantile_regression_ger_gradient_descent_2025-11-23_19-04"
-      
-- **model3_tuning1 on v1 data** ("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1/_50_6_50_5_1001_20_2_50_encoderislearnable_lambda0.5_bs128")
-    + ds = xr.open_dataset(settings['dataset_trefht'])
-    + ds_train = ds.isel(time=slice(0, 128000)) 
-    + ds_test = ds.isel(time=slice(-64000, 476900))
-    + ds_z500_pre = xr.open_dataset(settings['dataset_z500'])
-    + ds_z500, _, _ = ut.standardize_numpy(ds_z500_pre.pseudo_pcs.values)
-
-- **model3_tuning1 on v3 data** in ("/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/v3_model/")
-    + with/without batch normalization
-
-**Workflow:**
-
-(combine workflow into a master script)
-
-0. train model ...
-    + joint_training/start_training_slurm.sh and joint_training/train_joint_dpa_automated.py
-1. load model and create ensemble
-    + (first create new directory to save DPA ensemble --> being done automatically)
-    + (with load_model_create_ensemble.ipynb)
-    + with ETH_test_create_dpa_ensemble_with_ETH_test_set.py, LE_train_create_dpa_ensemble_with_LE_train_set.py and create_dpa_ensemble_with_validation_set.py
-    + /work/fl53wumy-llaae_data_new/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_model3_tuning1_noise1/ --> contains model and predicitons with 100 noise dimensions in the latent map
-2. slurm calculations
-    + create_results_array.py
-    + calculate_energy_score.py
-    + create_results_array_zarr.py -> create xarray dataset of DPA ensemble (the full restored one including nans) and save as .zarr
-4. Analysis: Analogues and rank histograms
-    + with module_dpa_analysis.ipynb
-5. Spatial maps, time series, extremes
-   + rank_hist_map.ipynb
-
-**Workflow for result analysis combined in dpa_results_analysis/analysis_results_sheet_master.py**
+## Instructions
 
 
-- created DPA ensemble (100 members) with LE train data (first 128 000 time steps) with "llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/create_dpa_ensemble_with_LE_train_set.py"
-    + calculate energy "loss with llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/analyse_dpa_ensemble_from_LE_train_set.py" (per map)
-    + analyse train error with "llaae_new/DistributionalPrincipalAutoencoder/dpa_results_analysis/LE_train_error.py"
+### Data setup
+- get the training and test data from **zenodo link**
+- create a data directory (arbitrary name) and put the data there (don't change names of the datasets)
+- insert the data directory name into `settings.json` in ['paths']['data']
+- adjust the paths in settings.json
+
+### Workflow to reproduce the extended abstract figure
+
+1. create a conda environement using the environment.yaml file ([explained here](https://docs.conda.io/projects/conda/en/stable/user-guide/tasks/manage-environments.html#creating-an-environment-from-an-environment-yml-file))
+2. Train the model (or skip this, directly go to step 2 and use the pretrained model in _devicecuda100_6_100_100_1001_20_2_50_encoderislearnable_lambda0.5_alpha1.5_bs128_bnisFalse_lr0)
+   - start model training by executing start_joint_training.sh
+3. Create an ensemble
+   - in `create_ensemble.sh`, adjust
+       - `MODEL=` and `MODEL_PATH=` accordingly
+       - the conda envrionment name in line 5 to the name of your conda environment
+   - optional
+       - adjust location for saving the generated ensemble `save_path=` (default is in the model directory)
+       - adjust the last command (around line 56) if you want to use slurm
+   - execute `create_ensemble.sh` to create the ensemble (potentially need to make it executable before `chmod +x create_ensemble.sh`)
+4. Analysis with `extended_abstract_figure.ipynb`
+   - potentially adjust `dae_ensemble_fact` and `dae_ensemble_cf`
+   - run the notebook
+
+
+This project is **work in progress**. If you encounter any issues or have suggestions, please reach out.
+
+This project builds is based on the [engression framework](https://github.com/xwshen51/engression).

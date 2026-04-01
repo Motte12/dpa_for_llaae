@@ -1,8 +1,0 @@
-{
-    "output_dir": "/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_output/dpa_tuning5_starting13022026_v6_data/",
-    "dataset_trefht": "/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v6_starting03022026/europe_10percent_masked_stacked_TREFHT_JJA.nc",
-    "dataset_z500": "/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v6_starting03022026/stream_pcsts_and_fGMT_not_standardized_LE.nc",
-    "dataset_trefht_eth_transient": "/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v6_starting03022026/ETH_europe_10percent_masked_stacked_TREFHT_JJA.nc",
-    "dataset_trefht_eth_nudged_shifted": "/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v6_starting03022026/ETH_europe_10percent_masked_stacked_TREFHT_nudged_JJA.nc",
-    "dataset_z500_eth_test": "/work/fl53wumy-dpa_data/fl53wumy-llaae_data_new_22092025-1763346001/fl53wumy-llaae_data_new-1758244802/fl53wumy-llaae_data_new-1748049607/dpa_input_data/v6_starting03022026/stream_pcsts_and_fGMT_not_standardized_ETH.nc"
-}

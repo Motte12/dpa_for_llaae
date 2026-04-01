@@ -1,1 +1,0 @@
-Epoch, Total loss, Total S1, Total S2, DPA NRGY, DPA s1, DPA s2, LM NRGY, LM s1, LM s1 

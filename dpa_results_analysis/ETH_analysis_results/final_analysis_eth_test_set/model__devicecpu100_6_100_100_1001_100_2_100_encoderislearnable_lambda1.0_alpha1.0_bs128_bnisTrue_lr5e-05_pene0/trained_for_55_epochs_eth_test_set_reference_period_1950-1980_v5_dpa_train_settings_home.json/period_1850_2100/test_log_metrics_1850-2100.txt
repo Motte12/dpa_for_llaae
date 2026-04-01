@@ -1,9 +1,0 @@
-=== Current Time: 2026-02-23 19:25:15 ===
-=== Quantiles ===
-Q-Q Factual MAE of domain average: 0.12265279096992425
-C-Q MAE Factual of domain average: 0.026754661869603805
-Q-Q Counterfactual MAE of domain average: 0.22613999695566128
-C-Q MAE Counterfactual of domain average: 0.12231958592223897
-counterfactual mean calibration CQ MAE: 0.05815939302421197
-counterfactual coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.0952260063629299
-counterfactual 095 coverage-quantiles spatial mean, mean MAE across test members (ETH 1300,1400,1500): 0.03240204656789778
